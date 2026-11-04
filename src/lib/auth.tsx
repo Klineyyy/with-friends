@@ -1,72 +1,75 @@
-import { createContext, use, useState, type ReactNode } from "react";
+import { useAuth as useClerkAuth, useClerk, useUser } from "@clerk/expo";
 
 /**
- * TEMPORARY mock of the auth/onboarding state so the "Getting in" screens can
- * be built and clicked through before Clerk and Convex exist.
+ * App-level auth state, derived from Clerk.
  *
- * Replace in the Clerk phase (see implementation.md): `status` will come from
- * Clerk's session + the Convex `users.onboarded` flag, and the actions will
- * call Clerk / Convex. The route guards in src/app/_layout.tsx stay the same.
+ * - `loading`    Clerk is restoring the session from the token cache.
+ * - `signedOut`  Sign-in screen (sign-in.tsx).
+ * - `onboarding` Signed in, but hasn't picked a username / accepted terms yet.
+ * - `signedIn`   Fully set up.
+ *
+ * TEMPORARY: onboarding data lives in Clerk `unsafeMetadata` until Convex
+ * exists. In the Convex phase, `onboarded` comes from `users.onboarded` and
+ * `completeOnboarding` becomes a Convex mutation (see implementation.md).
  */
-export type AuthStatus = "signedOut" | "notInvited" | "onboarding" | "signedIn";
+export type AuthStatus = "loading" | "signedOut" | "onboarding" | "signedIn";
+
+type OnboardingMetadata = {
+  onboarded?: boolean;
+  username?: string;
+  termsAcceptedAt?: string;
+};
 
 export type Account = {
-  email: string;
-  displayName: string;
+  email: string | null;
+  displayName: string | null;
   avatarUri: string | null;
   username: string | null;
 };
 
-type AuthState = {
-  status: AuthStatus;
-  account: Account | null;
-  signInWithGoogle: () => void;
-  signInWithApple: () => void;
-  completeOnboarding: (input: { username: string; avatarUri: string | null }) => void;
-  signOut: () => void;
-};
+export function useAuth() {
+  const { isLoaded, isSignedIn } = useClerkAuth();
+  const { user } = useUser();
+  const { signOut } = useClerk();
 
-const AuthContext = createContext<AuthState | null>(null);
+  const meta = (user?.unsafeMetadata ?? {}) as OnboardingMetadata;
 
-const mockAccount: Account = {
-  email: "jamie@example.com",
-  displayName: "Jamie Santos",
-  avatarUri: null,
-  username: null,
-};
+  const status: AuthStatus = !isLoaded
+    ? "loading"
+    : !isSignedIn || !user
+      ? "signedOut"
+      : meta.onboarded
+        ? "signedIn"
+        : "onboarding";
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [status, setStatus] = useState<AuthStatus>("signedOut");
-  const [account, setAccount] = useState<Account | null>(null);
+  const account: Account | null = user
+    ? {
+        email: user.primaryEmailAddress?.emailAddress ?? null,
+        displayName: user.fullName,
+        avatarUri: user.hasImage ? user.imageUrl : null,
+        username: meta.username ?? null,
+      }
+    : null;
 
-  const value: AuthState = {
-    status,
-    account,
-    // Mock wiring: Google behaves like an invited account, Apple like an
-    // uninvited one, so both branches of the flow can be reached.
-    signInWithGoogle: () => {
-      setAccount(mockAccount);
-      setStatus("onboarding");
-    },
-    signInWithApple: () => {
-      setAccount(mockAccount);
-      setStatus("notInvited");
-    },
-    completeOnboarding: ({ username, avatarUri }) => {
-      setAccount((a) => (a ? { ...a, username, avatarUri } : a));
-      setStatus("signedIn");
-    },
-    signOut: () => {
-      setAccount(null);
-      setStatus("signedOut");
-    },
-  };
+  async function completeOnboarding(input: {
+    username: string;
+    /** A new photo as a base64 data URL, or null to keep the current one. */
+    newAvatarDataUrl: string | null;
+  }) {
+    if (!user) throw new Error("Not signed in");
+    if (input.newAvatarDataUrl) {
+      await user.setProfileImage({ file: input.newAvatarDataUrl });
+    }
+    await user.updateMetadata({
+      unsafeMetadata: {
+        onboarded: true,
+        username: input.username,
+        termsAcceptedAt: new Date().toISOString(),
+      } satisfies OnboardingMetadata,
+    });
+    // Refresh so `unsafeMetadata` (and the status above) update.
+    await user.reload();
+  }
 
-  return <AuthContext value={value}>{children}</AuthContext>;
-}
-
-export function useAuth(): AuthState {
-  const ctx = use(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used inside <AuthProvider>");
-  return ctx;
+  return { status, account, completeOnboarding, signOut: () => signOut() };
 }

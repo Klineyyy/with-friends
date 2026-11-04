@@ -31,9 +31,8 @@ Board screens 1–3.
 
 - [x] Theme tokens (`src/theme`), Roboto via `@expo-google-fonts/roboto`; the splash screen stays up until fonts load
 - [x] UI primitives: `Text`, `Button` (primary / secondary / disabled, large / compact), `TextField`, `Checkbox`, `Avatar`, `Logo` / `LogoMark` (SVG fish), `Screen`
-- [x] `sign-in` (1), `not-invited` (2), `onboarding` (3)
-- [x] Route guards with `Stack.Protected` driven by an auth status: `signedOut → notInvited → onboarding → signedIn`
-- [x] Mock auth (`src/lib/auth.tsx`): **Google acts as an invited account, Apple as an uninvited one**, so both paths can be tested
+- [x] `sign-in` (1), `onboarding` (3). Screen 2 (Not invited) was built, then dropped with invite-only
+- [x] Route guards with `Stack.Protected` driven by an auth status
 - [x] Username rules (`src/lib/username.ts`): lowercase, `[a-z0-9_.]`, 3–30 characters; live "✓ jamie is available" with a mock check of taken names
 - [x] "Change photo" uses the system photo picker (`expo-image-picker`), square crop
 - [x] `index` is a placeholder Home with Sign out
@@ -65,16 +64,32 @@ Screens 14a–16b.
 ### Phase 7 — Settings and safety (UI)
 Screens 17–19, 21.
 
-### Phase 8 — Auth for real (Clerk)
-- Install Clerk Expo SDK; Google + Apple OAuth; invite-only mode in the Clerk dashboard.
-- Replace `src/lib/auth.tsx` internals. Keep the `status` values and the guards in `_layout.tsx` as they are.
-- Map Clerk's "not invited" sign-up error to `notInvited` (see design.md §6.8 on the email shown).
-- Needs a development build (`eas build --profile development`); Expo Go won't work from here on.
+### Phase 8 — Auth (Clerk) ✅ code done, not yet tested on a device
+Done out of order (before Phases 2–7) at your request.
+
+- [x] `npx clerk init --app app_3LdKwR3ypW6XLfH4zMCKQgC2Fnr` (app "WithFriends"): `@clerk/expo` 4.15, keys in `.env` (git-ignored)
+- [x] **Our board screens 1 and 2**, on Clerk's browser SSO (`useSSO`, `src/lib/social-sign-in.ts`). Tried Clerk's built-in `AuthView` first and dropped it: it couldn't match the board
+- [x] Dev instance redirect allowlist: `withfriends://sso-callback`. `src/app/+native-intent.tsx` stops Expo Router from opening that callback as a screen ("Unmatched route")
+- [x] **Invite-only removed for now** (2026-11-04, your call): sign-up mode **public**, Not invited screen and invite footnote removed. Anyone with the app can sign up with Google or Apple
+- [x] `src/lib/auth.tsx` derives `loading → signedOut → onboarding → signedIn` from Clerk; splash stays up while Clerk loads
+- [x] Onboarding saves `onboarded`, `username`, `termsAcceptedAt` to Clerk `unsafeMetadata` (**TEMPORARY** until Convex) and a new photo via `user.setProfileImage`. Default avatar = Google/Apple photo
+- [x] Dev instance: Google and Apple enabled
+- [x] `expo-dev-client`, `expo-secure-store` (token cache), `expo-auth-session` + `expo-crypto` (SSO) installed
+
+Still to do before it runs:
+- [x] Android package ID `com.klinegarcia.withfriends` in `app.json`; `eas.json` with `development` / `preview` / `production` profiles
+- [x] EAS project linked (`@fskline/withfriends`)
+- Rebuild the dev build (`npx eas-cli build --profile development --platform android`): `expo-crypto` is new native code
+- Clerk Dashboard → **Native applications**: register the Android app (namespace `android_app`, package, SHA-256 of the EAS signing key). Needed for native Google sign-in later; browser SSO works without it
+- Google's consent screen says "Clerk" because the dev instance uses Clerk's shared Google credentials. Before inviting friends, add your own Google Cloud OAuth credentials in Clerk so it says "With Friends"
+- Before release, decide how to restrict who can join (scope requires invite-only): Clerk restricted mode or an email allowlist, plus bring back the Not invited screen (in git history, commit 2e03f1b)
+- Invite yourself in Clerk Dashboard → Users → Invitations, sign in, finish onboarding, restart the app and check the session survives.
+- Apple on Android goes through a browser; needs the Apple Services ID set up in Clerk for production (dev uses Clerk's shared credentials).
 
 ### Phase 9 — Backend (Convex)
 - Schema from project-scope §5; `ConvexProviderWithClerk`; Clerk webhook.
 - Swap each mock for queries and mutations, area by area, in the same order as the UI phases.
-- Username availability → query on the unique `username` index; onboarding → mutation that sets `onboarded`, `termsAcceptedAt`, avatar.
+- Username availability → query on the unique `username` index (still mocked in `src/lib/username.ts`); onboarding → mutation that sets `onboarded`, `termsAcceptedAt`, avatar. Move `onboarded` off Clerk `unsafeMetadata` (users can edit it) into Convex, or into Clerk `publicMetadata` set by the webhook.
 - Convex function tests (permissions, owner-only deletes, blocks, username uniqueness, deletion cascade).
 
 ### Phase 10 — Push, CI, release
@@ -90,3 +105,5 @@ Screens 17–19, 21.
 | `lucide-react-native` for icons | Line style matches the board; stroke width is adjustable | — |
 | Roboto bundled on both platforms | design.md: Roboto everywhere | — |
 | `Stack.Protected` route guards | Each auth state unlocks exactly one set of routes; Clerk slots in without changing routes | — |
+| Board sign-in screens + Clerk `useSSO` (browser) for Google and Apple | Matches the board; works with Clerk's dev credentials. Clerk's `AuthView` was tried and removed because its layout and copy are Clerk's | Native Google sheet (`@clerk/expo-google-signin`) needs Google Cloud OAuth clients; consider before release |
+| Onboarding state in Clerk `unsafeMetadata` | Lets onboarding work before Convex exists | Phase 9 |

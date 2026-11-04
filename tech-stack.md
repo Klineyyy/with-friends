@@ -24,7 +24,18 @@
 | `react-native-safe-area-context` | ~5.11.1 | Safe-area insets |
 | `expo-linking` | ~58.0.16 | Deep links, scheme `withfriends://` |
 
-Current routes (all in `src/app/`): `_layout.tsx` (a `Stack` with `Stack.Protected` auth guards, loads fonts), `sign-in.tsx`, `not-invited.tsx`, `onboarding.tsx`, `index.tsx` (placeholder Home). Auth is mocked in `src/lib/auth.tsx` until Clerk is added — see [implementation.md](implementation.md).
+Current routes (all in `src/app/`): `_layout.tsx` (`ClerkProvider`, loads fonts, a `Stack` with `Stack.Protected` auth guards), `+native-intent.tsx` (ignores the SSO callback link), `sign-in.tsx`, `onboarding.tsx`, `index.tsx` (placeholder Home). See [implementation.md](implementation.md).
+
+## Auth
+
+| Package | Version | Notes |
+|---|---|---|
+| `@clerk/expo` | ^4.15.0 | `ClerkProvider`, hooks. Config plugin `@clerk/expo` |
+| `expo-auth-session` / `expo-crypto` | ~58.0.17 / ~58.0.7 | Required by Clerk `useSSO` (browser Google / Apple sign-in) |
+| `expo-secure-store` | ~58.0.2 | Session token cache (`@clerk/expo/token-cache`) |
+| `expo-dev-client` | ~58.0.18 | Development builds (EAS project `@fskline/withfriends`) |
+
+Env (`.env`, git-ignored): `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` (in the app), `CLERK_SECRET_KEY` (server-side only, never import it in app code). Clerk app `app_3LdKwR3ypW6XLfH4zMCKQgC2Fnr`, dev instance only; sign-up mode **public** (invite-only off for now); redirect allowlist `withfriends://sso-callback`.
 
 ## UI, animation & gestures
 
@@ -65,10 +76,10 @@ Styling is plain `StyleSheet` using the typed tokens in `src/theme/` (colours li
 ## Configuration
 
 **`app.json`**
-- Name `With Friends`, slug `with-friends`, scheme `withfriends`
+- Name `With Friends`, slug `with-friends`, scheme `withfriends`, Android package `com.klinegarcia.withfriends`
 - Portrait only, `userInterfaceStyle: automatic` (light + dark)
 - iOS icon: `assets/expo.icon`; Android adaptive icon with monochrome layer, predictive back gesture off
-- Plugins: `expo-router`, `expo-splash-screen`
+- Plugins: `expo-router`, `expo-splash-screen`, `@clerk/expo`, `expo-secure-store`
 - Experiments: `typedRoutes`, `reactCompiler` (React Compiler on)
 
 **`tsconfig.json`**
@@ -95,9 +106,8 @@ Styling is plain `StyleSheet` using the typed tokens in `src/theme/` (colours li
 |---|---|
 | Styling | NativeWind (v4 stable or v5 preview, to decide; tokens in `src/theme` for now) |
 | Tabs | `expo-router/native-tabs` |
-| Auth | Clerk (Google + Apple, invite-only) |
 | Backend, database, file storage, realtime | Convex |
 | Push notifications | `expo-notifications` + Expo Push Service |
-| Builds & OTA updates | EAS Build, EAS Update (no `eas.json` yet) |
+| Builds & OTA updates | EAS Build (`eas.json`: `development`, `preview` APK, `production`), EAS Update not set up |
 | Crash reporting | EAS Observe |
 | CI | Required, not set up |

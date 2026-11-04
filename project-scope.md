@@ -60,7 +60,7 @@ Web app · private accounts / follow requests · multi-photo carousels · server
 
 ## 4. Core user journeys
 
-1. **First launch (not invited):** sign-in screen → Google/Apple → Clerk rejects sign-up → "You need an invitation to join. Ask the person who shared the app with you."
+1. **First launch (not invited):** sign-in screen → Google/Apple → Clerk rejects sign-up → "You need an invitation to join. Ask the person who shared the app with you." *(On hold 2026-11-04: invite-only is off during development; anyone can sign up. Revisit before inviting friends.)*
 2. **First launch (invited):** sign-in → onboarding (username, avatar, accept terms) → Home empty state: "Follow people to see their posts here", with a button to Explore and a short list of members to follow.
 3. **Returning user:** app opens straight to the Home feed.
 4. **Post:** create button (Home header) → pick from library or capture → preview, length check (≤30 s), caption → **Share** → appears at the top of followers' feeds. While uploading, the post shows a progress state; on failure, "Upload failed. Tap to retry."
@@ -153,7 +153,7 @@ All IDs are Convex document IDs. Counts are stored on the parent record and upda
 - **A11.** Terms of use are accepted during onboarding (Google Play UGC requirement).
 - **A12.** Share links use an `https://` URL on a small static site that opens the app (Android App Links) and otherwise shows a "Get the app" page; the same site hosts the deletion-request page. Until it exists, links use `withfriends://`.
 - **A13.** Video poster frames are generated on device at upload.
-- **A14.** Android package ID will be `com.<your-name>.withfriends` — needs your choice before the first build.
+- **A14.** Android package ID: `com.klinegarcia.withfriends` (confirmed 2026-11-04).
 - **A15.** Counts (followers, likes, comments, posts) are stored on records rather than counted on read.
 
 ## 11. Open risks and unknowns

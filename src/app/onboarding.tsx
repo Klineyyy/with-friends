@@ -20,7 +20,11 @@ export default function Onboarding() {
   const { account, completeOnboarding } = useAuth();
   const colors = useColors();
 
+  // Defaults to the Google/Apple photo Clerk already has.
   const [avatarUri, setAvatarUri] = useState(account?.avatarUri ?? null);
+  const [newAvatarDataUrl, setNewAvatarDataUrl] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [agreed, setAgreed] = useState(false);
   // Last server answer, tagged with the username it was for.
@@ -58,21 +62,42 @@ export default function Onboarding() {
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
+      base64: true,
     });
-    if (!result.canceled) setAvatarUri(result.assets[0].uri);
+    if (result.canceled) return;
+    const asset = result.assets[0];
+    setAvatarUri(asset.uri);
+    if (asset.base64) {
+      setNewAvatarDataUrl(`data:${asset.mimeType ?? "image/jpeg"};base64,${asset.base64}`);
+    }
   }
 
-  const canContinue = agreed && availability.state === "available";
+  async function submit() {
+    setSaving(true);
+    setSaveError(null);
+    try {
+      await completeOnboarding({ username, newAvatarDataUrl });
+      // On success the route guard moves to Home; this screen unmounts.
+    } catch {
+      setSaveError("Couldn't save. Check your connection and try again.");
+      setSaving(false);
+    }
+  }
+
+  const canContinue = agreed && availability.state === "available" && !saving;
 
   return (
     <KeyboardAvoidingView behavior="padding" style={styles.flex}>
       <Screen
         footer={
-          <Button
-            label="Continue"
-            disabled={!canContinue}
-            onPress={() => completeOnboarding({ username, avatarUri })}
-          />
+          <>
+            {saveError ? (
+              <Text variant="meta" tone="secondary" accessibilityLiveRegion="polite">
+                {saveError}
+              </Text>
+            ) : null}
+            <Button label={saving ? "Saving…" : "Continue"} disabled={!canContinue} onPress={submit} />
+          </>
         }
       >
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>

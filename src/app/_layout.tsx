@@ -1,3 +1,5 @@
+import { ClerkProvider } from "@clerk/expo";
+import { tokenCache } from "@clerk/expo/token-cache";
 import {
   Roboto_400Regular,
   Roboto_500Medium,
@@ -9,8 +11,16 @@ import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 
-import { AuthProvider, useAuth } from "@/lib/auth";
+import { useAuth } from "@/lib/auth";
 import { useColors } from "@/theme";
+
+const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ?? "";
+
+if (!publishableKey) {
+  throw new Error(
+    "Missing EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY. Add it to .env (run `npx -y clerk@latest env pull`), then restart the dev server.",
+  );
+}
 
 SplashScreen.preventAutoHideAsync();
 
@@ -21,17 +31,13 @@ export default function RootLayout() {
     Roboto_600SemiBold,
   });
 
-  useEffect(() => {
-    if (fontsLoaded || fontError) SplashScreen.hideAsync();
-  }, [fontsLoaded, fontError]);
-
   if (!fontsLoaded && !fontError) return null;
 
   return (
-    <AuthProvider>
+    <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
       <StatusBar style="auto" />
       <RootStack />
-    </AuthProvider>
+    </ClerkProvider>
   );
 }
 
@@ -39,6 +45,14 @@ export default function RootLayout() {
 function RootStack() {
   const { status } = useAuth();
   const colors = useColors();
+
+  // Keep the splash up while Clerk restores the session, so a signed-in user
+  // never sees the sign-in screen flash on cold start.
+  useEffect(() => {
+    if (status !== "loading") SplashScreen.hideAsync();
+  }, [status]);
+
+  if (status === "loading") return null;
 
   return (
     <Stack
@@ -50,9 +64,6 @@ function RootStack() {
     >
       <Stack.Protected guard={status === "signedOut"}>
         <Stack.Screen name="sign-in" />
-      </Stack.Protected>
-      <Stack.Protected guard={status === "notInvited"}>
-        <Stack.Screen name="not-invited" />
       </Stack.Protected>
       <Stack.Protected guard={status === "onboarding"}>
         <Stack.Screen name="onboarding" />

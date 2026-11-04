@@ -100,8 +100,8 @@ Numbers match the board.
 ### Getting in
 | # | Screen | Key details |
 |---|---|---|
-| 1 | Sign in | Centred logo + "With Friends" + "Photos and videos, just for your circle." Buttons at bottom: Continue with Google (outline), Continue with Apple (black). Footnote: "With Friends is invite-only. Use the account your invite was sent to." |
-| 2 | Not invited | Envelope icon, "Not invited yet", "You need an invitation to join. Ask the person who shared the app with you.", "Signed in as {email}", bottom: Use another account |
+| 1 | Sign in | Centred logo + "With Friends" + "Photos and videos, just for your circle." Buttons at bottom: Continue with Google (outline), Continue with Apple (black). Footnote: "With Friends is invite-only. Use the account your invite was sent to." *(footnote hidden while invite-only is off)* |
+| 2 | Not invited *(dropped for now with invite-only; see implementation.md)* | Envelope icon, "Not invited yet", "You need an invitation to join. Ask the person who shared the app with you.", "Signed in as {email}", bottom: Use another account |
 | 3 | Onboarding | "Welcome" / "Pick a username. It shows on everything you share." Profile photo (80) + Change photo link. Username input with live "✓ jamie is available". Checkbox "I agree to the Terms and Community rules". Bottom: Continue. No display-name field (taken from Google/Apple). |
 
 ### Home and posts
@@ -190,4 +190,4 @@ Exact syntax depends on the NativeWind version chosen (v4 `tailwind.config.js` v
 5. **In-app photo grid (6.1).** A custom gallery grid needs broad photo/video permissions (`READ_MEDIA_IMAGES` / `READ_MEDIA_VIDEO`). Google Play restricts these for apps that only need occasional access and expects the system photo picker instead. Options: use the system picker (look differs from 6.1), or justify broad access in the Play declaration. Recommend the system picker.
 6. **"Share with apps" row (8a).** Copy is easy; Nearby, Messages, Email can't be targeted individually from React Native — one "More…" button opening the system share sheet is the realistic version.
 7. **Share link domain.** Board uses `withfriends.app/p/8kq2` (short IDs). Needs a domain and a short-ID field on posts.
-8. **"Signed in as" on Not invited (2).** With Clerk invite-only, an uninvited sign-up is rejected before a session exists; the email may only be available from the failed OAuth attempt. Copy may need to change to "Tried {email}".
+8. **"Signed in as" on Not invited (2).** Moot for now: screen 2 is dropped while invite-only is off. With Clerk invite-only, an uninvited sign-up is rejected before a session exists; the email may only be available from the failed OAuth attempt. Copy may need to change to "Tried {email}".
