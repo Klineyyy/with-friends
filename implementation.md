@@ -14,9 +14,11 @@ Every phase ends with `npx tsc --noEmit` and `npx expo lint` passing.
 
 ```
 src/
-  app/              routes only (Expo Router)
-  components/ui/    design-system primitives: Text, Button, TextField, Checkbox, Avatar, Logo, Screen
-  lib/              app logic: auth state, username rules, later Convex hooks
+  app/              routes only (Expo Router). (tabs)/ = Home · Explore · Messages · Profile
+  components/ui/    design-system primitives: Text, Button, IconButton, TextField, Checkbox, Avatar, UnreadDot, Logo, Screen
+  components/       app components: TopBar, FloatingTabBar, PersonRow, EmptyState
+  components/post/  PostItem, MediaView, LikeButton, UploadStatusRow
+  lib/              app logic: auth state, posts store + hooks, mock data, formatting, later Convex hooks
   theme/            tokens: colours (light/dark), Roboto type scale, spacing, radius
 ```
 
@@ -35,22 +37,42 @@ Board screens 1–3.
 - [x] Route guards with `Stack.Protected` driven by an auth status
 - [x] Username rules (`src/lib/username.ts`): lowercase, `[a-z0-9_.]`, 3–30 characters; live "✓ jamie is available" with a mock check of taken names
 - [x] "Change photo" uses the system photo picker (`expo-image-picker`), square crop
-- [x] `index` is a placeholder Home with Sign out
+- [x] ~~`index` is a placeholder Home with Sign out~~ replaced by the tab shell in Phase 2
 
 Open items for this area:
 - Terms and Community rules links don't go anywhere yet (those pages aren't on the board).
 - Splash background (`#208AEF`) and app icons are still the Expo template's. Replace them with the fish mark on white.
 - The logo is redrawn as SVG from the board; check it against the board at large size.
 
-### Phase 2 — App shell and Home (UI)
+### Phase 2 — App shell and Home (UI) ✅ done
 Board screens 4, 5, 6.3–6.4.
-- Decide design.md §6.1: custom floating tab bar (matches board) vs native tabs. **Recommended: custom tab bar** with Expo Router `Tabs`.
-- Tabs: Home · Explore · Messages · Profile. Header with logo, Activity heart, new-post ⊞.
-- `PostItem`, `MediaView`, `LikeButton` (the one pop animation), empty Home with "People you may know".
-- Mock data module with the board's people (maya, tom, lola.ines…) and photos.
 
-### Phase 3 — Posting (UI)
-Flow 6. System photo picker (design.md §6.5), preview, 30 s check, caption, upload-row states.
+- [x] Custom floating tab bar (design.md §6.1 option a) on Expo Router `Tabs` from `expo-router/js-tabs`: `src/components/FloatingTabBar.tsx`. Tabs: Home · Explore · Messages · Profile; fern active tab; fern dot on Messages. Content scrolls under it; tab screens pad the bottom with `useTabBarSpace()`. (Native glass tabs were tried on 2026-11-04 and reverted at your request.)
+- [x] **Glass tab bar** (your call, replaces the board's flat style): `expo-glass-effect` Liquid Glass on iOS 26+, `expo-blur` system material on older iOS, and on Android `expo-blur` blurring a `BlurTargetView` that wraps the tab screens (`dimezisBlurViewSdk31Plus`: Android 12+, frosted tint below). The bar is rendered **outside** the `Tabs` navigator (`tabBar={() => null}`), because the blur can't sit inside its own target; it tracks the active tab with `usePathname()` and switches with `router.navigate`. Side effect: tapping the current tab again does nothing (no scroll-to-top yet). **Needs a dev-build rebuild** (`expo-blur` is native)
+- [x] Home header: logo, Activity heart (fern dot when unread) → `activity` (board 16b empty state for now), ⊞ new post
+- [x] `PostItem` (32 avatar, username, time, ⋯; media; like / comment / share; "Liked by **maya** and **3 others**"; caption; "View all 4 comments"), `MediaView` (clamped 4:5–1.91:1, video poster + duration badge + play), `LikeButton` (the one pop animation, skipped with reduced motion). Double-tap the media to like
+- [x] Empty Home (5): "Follow people to see their posts here", Go to Explore, "People you may know" with working Follow buttons
+- [x] Upload row at the top of Home: "Sharing…" with progress (6.3), "Upload failed. Tap to retry." (6.4)
+- [x] `post/[id]`: one post with its comments (not on the board, built from the feed item). Missing post → board 20 "This post was deleted."
+- [x] ⋯ on your own post → Delete post (with confirm). On others' posts → Share (Report comes in Phase 7)
+- [x] **Sample data** (`src/lib/mock-data.ts`, **TEMPORARY**): the board's people (maya, tom, lola.ines, bencruz, ana, jules, priya, theo, sam.o, nina), 9 posts incl. 2 videos, likes and comments. Photos are fixed picsum.photos IDs (needs network). You follow 7 of them; theo, sam.o and nina are "people you may know"
+- [x] Store and hooks in `src/lib/posts.tsx` (`useFeed`, `usePost`, `usePostActions`, `useFollowing`, `useUploads`, `useUsers`, `useMe`…). In-memory: resets on reload. Phase 9 keeps the hook names and swaps the inside for Convex
+- [x] Explore, Messages, Profile tabs are placeholders. Profile has Sign out and, in dev builds only, "Unfollow everyone" to see the empty Home
+
+Open items for this area:
+- Feed videos don't play: needs `expo-video` (native, so a dev-build rebuild). Your own video posts show a dark tile instead of a poster until `expo-video-thumbnails` makes one on device (scope A13).
+- Share button uses the system share sheet with `withfriends.app/p/{shortId}` until the in-app share sheet (8a, Phase 5).
+- Comment icon and "View all N comments" open `post/[id]`; the comments sheet (7) replaces that in Phase 5. "Liked by…" isn't tappable yet (9, Phase 5).
+- Pull to refresh only shows the spinner (nothing to refetch with mock data).
+
+### Phase 3 — Posting (UI) ✅ mostly done
+Flow 6.
+
+- [x] ⊞ opens the **system photo picker** (photos and videos), not the 6.1 in-app grid (design.md §6.5, Play media-permission rules): `src/lib/pick-media.ts`
+- [x] `new-post` (6.2): ← "New post" [Share], preview, "✓ 0:24 of 0:30. Fits the 30 second limit." (or an over-limit message that disables Share; also 50 MB), avatar + caption (2,200 max), video hint
+- [x] Share → back to Home with the upload row. **TEMPORARY** fake upload: ~2.5 s, about 1 in 5 attempts fails so the retry row can be seen
+- [ ] Camera capture (6.1's Camera tile) — not built; the system picker has no camera option on Android
+- [ ] Image compression beyond the picker's `quality: 0.8` (e.g. resize long edge) — decide with Phase 9 uploads
 
 ### Phase 4 — Explore, profiles, follows (UI)
 Screens 10a–13.
@@ -102,6 +124,10 @@ Still to do before it runs:
 | Decision | Why | Revisit when |
 |---|---|---|
 | Styling with `StyleSheet` + typed tokens in `src/theme`, **not NativeWind yet** | NativeWind v4/v5 compatibility with RN 0.88 is an open risk (scope §11.1). Tokens keep screens semantic, so moving to NativeWind classes later is mechanical. | Before Phase 2 if you want NativeWind. Ask for a short spike. |
+| Custom floating tab bar (`expo-router/js-tabs`), not native tabs | Matches the board's floating pill; native tabs can't be shaped like it (design.md §6.1). Native glass tabs were tried and reverted (2026-11-04) | If the JS tab bar feels slow on low-end Android |
+| Glass look on the custom bar (Liquid Glass / blur), not the board's flat outline | Your call (2026-11-04) | If Android blur costs frames while scrolling the feed: drop to `blurMethod="none"` (tint only) |
+| System photo picker for new posts, not the 6.1 in-app grid | No broad photo/video permission, which Google Play restricts (design.md §6.5) | — |
+| Sample photos from picsum.photos by fixed ID | No binary assets in the repo for throwaway data; same images every launch | Phase 9 (real uploads) |
 | `lucide-react-native` for icons | Line style matches the board; stroke width is adjustable | — |
 | Roboto bundled on both platforms | design.md: Roboto everywhere | — |
 | `Stack.Protected` route guards | Each auth state unlocks exactly one set of routes; Clerk slots in without changing routes | — |

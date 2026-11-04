@@ -12,6 +12,7 @@ import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 
 import { useAuth } from "@/lib/auth";
+import { PostsProvider } from "@/lib/posts";
 import { useColors } from "@/theme";
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ?? "";
@@ -36,7 +37,9 @@ export default function RootLayout() {
   return (
     <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
       <StatusBar style="auto" />
-      <RootStack />
+      <PostsProvider>
+        <RootStack />
+      </PostsProvider>
     </ClerkProvider>
   );
 }
@@ -69,7 +72,10 @@ function RootStack() {
         <Stack.Screen name="onboarding" />
       </Stack.Protected>
       <Stack.Protected guard={status === "signedIn"}>
-        <Stack.Screen name="index" />
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="post/[id]" options={{ animation: "default" }} />
+        <Stack.Screen name="activity" options={{ animation: "default" }} />
+        <Stack.Screen name="new-post" options={{ animation: "default" }} />
       </Stack.Protected>
     </Stack>
   );

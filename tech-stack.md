@@ -44,7 +44,8 @@ Env (`.env`, git-ignored): `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` (in the app), `CL
 | `@expo/ui` | ~58.0.27 | Native SwiftUI / Jetpack Compose components |
 | `expo-image` | ~58.0.18 | Image rendering and caching |
 | `expo-symbols` | ~58.0.4 | SF Symbols (iOS) |
-| `expo-glass-effect` | ~58.0.5 | iOS liquid-glass views |
+| `expo-glass-effect` | ~58.0.5 | iOS liquid-glass views (tab bar on iOS 26+) |
+| `expo-blur` | ~58.0.5 | Tab bar blur: iOS 18 and earlier, and Android 12+ via `BlurTargetView`. Native: needs a dev-build rebuild |
 | `expo-font` | ~58.0.11 | Custom fonts |
 | `react-native-reanimated` | 4.7.1 | Animations |
 | `react-native-worklets` | 0.13.0 | Worklet runtime used by Reanimated 4 |
