@@ -14,7 +14,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Text, UnreadDot } from "@/components/ui";
 import { hasNativeBlur } from "@/lib/native";
-import { useUnread } from "@/lib/posts";
+import { useUnread } from "@/lib/inbox";
 import { fonts, space, useColors, useScheme } from "@/theme";
 
 const BAR_HEIGHT = 64;

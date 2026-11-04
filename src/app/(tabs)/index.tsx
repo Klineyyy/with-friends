@@ -10,7 +10,8 @@ import { UploadStatusRow } from "@/components/post/UploadStatusRow";
 import { TopBar } from "@/components/TopBar";
 import { Button, IconButton, Logo, Text } from "@/components/ui";
 import { pickPostMedia } from "@/lib/pick-media";
-import { useFeed, useFollowing, useSuggestedPeople, useUnread, useUploads } from "@/lib/posts";
+import { useUnread } from "@/lib/inbox";
+import { useFeed, useFollowing, useSuggestedPeople, useUploads } from "@/lib/posts";
 import { space, useColors } from "@/theme";
 
 /** Board 4 (feed), 5 (empty), 6.3–6.4 (upload row). */

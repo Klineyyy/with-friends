@@ -11,6 +11,7 @@ import { ProfileHeader } from "@/components/ProfileHeader";
 import { TopBar } from "@/components/TopBar";
 import { Button, IconButton } from "@/components/ui";
 import { ME_ID } from "@/lib/mock-data";
+import { openThread } from "@/lib/open-profile";
 import { useFollowing, userExists, useUserPosts, useUsers } from "@/lib/posts";
 import { space, useColors } from "@/theme";
 
@@ -76,8 +77,7 @@ export default function UserProfile() {
                   label="Message"
                   variant="secondary"
                   style={styles.fill}
-                  // TEMPORARY: opens the Messages tab until threads (board 15) exist in Phase 6.
-                  onPress={() => router.navigate("/messages")}
+                  onPress={() => openThread(id)}
                 />
               </>
             }

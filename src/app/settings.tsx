@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { TopBar } from "@/components/TopBar";
 import { Button, SegmentedControl, Text } from "@/components/ui";
 import { useAuth } from "@/lib/auth";
+import { useClearConversations } from "@/lib/inbox";
 import { useFollowing } from "@/lib/posts";
 import { setAppearancePref, space, useAppearancePref, useColors, type AppearancePref } from "@/theme";
 
@@ -22,6 +23,7 @@ export default function Settings() {
   const insets = useSafeAreaInsets();
   const { signOut } = useAuth();
   const { clearAll } = useFollowing();
+  const clearMessages = useClearConversations();
   const appearance = useAppearancePref();
 
   return (
@@ -39,7 +41,10 @@ export default function Settings() {
         </View>
         <View style={styles.group}>
           {__DEV__ ? (
-            <Button label="Unfollow everyone (test empty Home)" variant="secondary" onPress={clearAll} />
+            <>
+              <Button label="Unfollow everyone (test empty Home)" variant="secondary" onPress={clearAll} />
+              <Button label="Clear messages (test empty Messages)" variant="secondary" onPress={clearMessages} />
+            </>
           ) : null}
           <Button label="Sign out" variant="secondary" onPress={signOut} />
         </View>

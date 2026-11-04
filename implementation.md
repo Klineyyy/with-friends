@@ -16,9 +16,10 @@ Every phase ends with `npx tsc --noEmit` and `npx expo lint` passing.
 src/
   app/              routes only (Expo Router). (tabs)/ = Home · Explore · Messages · Profile
   components/ui/    design-system primitives: Text, Button, IconButton, TextField, SearchField, Checkbox, Avatar, UnreadDot, Logo, Screen, SegmentedControl
-  components/       app components: TopBar, FloatingTabBar, PersonRow, EmptyState, PhotoGrid, ProfileHeader, UnderlineTabs, MenuPopover
+  components/       app components: TopBar, FloatingTabBar, PersonRow, EmptyState, PhotoGrid, ProfileHeader, UnderlineTabs, MenuPopover, ConversationRow, ActivityRow
   components/post/  PostItem, MediaView, LikeButton, UploadStatusRow
-  lib/              app logic: auth state, posts store + hooks, mock data, formatting, later Convex hooks
+  components/messages/  MessageBubble (text / photo / shared-post card)
+  lib/              app logic: auth state, posts store + hooks, inbox store + hooks (messages, activity), mock data, formatting, later Convex hooks
   theme/            tokens: colours (light/dark), Roboto type scale, spacing, radius
 ```
 
@@ -58,7 +59,7 @@ Board screens 4, 5, 6.3–6.4.
 - [x] ⋯ on your own post → Delete post (with confirm). On others' posts → Share (Report comes in Phase 7)
 - [x] **Sample data** (`src/lib/mock-data.ts`, **TEMPORARY**): the board's people (maya, tom, lola.ines, bencruz, ana, jules, priya, theo, sam.o, nina), 9 posts incl. 2 videos, likes and comments. Photos are fixed picsum.photos IDs (needs network). You follow 7 of them; theo, sam.o and nina are "people you may know"
 - [x] Store and hooks in `src/lib/posts.tsx` (`useFeed`, `usePost`, `usePostActions`, `useFollowing`, `useUploads`, `useUsers`, `useMe`…). In-memory: resets on reload. Phase 9 keeps the hook names and swaps the inside for Convex
-- [x] ~~Explore, Messages, Profile tabs are placeholders~~ Explore and Profile built in Phase 4; Messages is still a placeholder
+- [x] ~~Explore, Messages, Profile tabs are placeholders~~ Explore and Profile built in Phase 4, Messages in Phase 6
 
 Open items for this area:
 - Feed videos don't play yet (`expo-video` is installed for posters; playback UI not built). Your own video posts get a poster made on device (Phase 3).
@@ -101,7 +102,7 @@ Screens 10a–13.
 
 Open items for this area:
 - Block / Report in the ⋯ menu show "isn't ready yet" until Phase 7.
-- Message opens the Messages tab, not a thread, until Phase 6.
+- ~~Message opens the Messages tab, not a thread, until Phase 6.~~ Opens the thread since Phase 6.
 - Profiles, follower lists and Settings open on the root stack, so the tab bar is hidden there (same as `post/[id]`). Board 12 shows the tab bar on maya's profile; keeping it needs a stack inside each tab. See decisions.
 - Edit profile can't change photo or username yet (username needs the Convex unique index, Phase 9). Edits reset on reload.
 - Tapping a grid tile opens the single-post screen, not a scrollable feed of that profile's posts.
@@ -109,8 +110,24 @@ Open items for this area:
 ### Phase 5 — Comments, likes, share (UI)
 Screens 7, 8a, 8b, 9, 20. `BottomSheet` component.
 
-### Phase 6 — Messages and Activity (UI)
+### Phase 6 — Messages and Activity (UI) ✅ done
 Screens 14a–16b.
+
+- [x] `messages` tab (14a): "Messages" + ✎ (pencil) → New message. `ConversationRow`: 52 avatar, display name, "preview · time" ("Sent a photo", "Shared a post", "You: …"; times "2m", "3h", "Mon", "Oct 28"), fern dot when unread. Most recent first
+- [x] Empty (14b): chat icon, "Start a conversation" / "Messages are one-to-one and only seen by the two of you.", "Members" with Message buttons (`PersonRow` now takes an `action` and `onPress`)
+- [x] `thread/[id]` (15), ID = the other person's user ID: ← 32 avatar, display name, @username (taps to profile), ⋯ → View profile / Block / Report (Block and Report say "isn't ready yet" until Phase 7). Inverted list; centred time ("Today 8:12 AM") above the first message after an hour's gap. `MessageBubble`: incoming grey left, outgoing black right, photos 200 wide rounded, shared-post card (24 avatar + username, media, 2-line caption, opens the post; "This post was deleted." if gone). "Seen" under your last message when it's the newest and they've read it. Composer: photo button (system picker, compressed like posts), "Message…" (1,000 max, grows to ~5 lines), send (grey until there's text)
+- [x] `new-message` (not on the board, built like 8b): ✕ "New message", "Search people", members; tap → thread (replaces the picker, so Back goes to Messages)
+- [x] `activity` (16a): ← "Activity", sections Today / This week / Earlier. `ActivityRow`: fern dot left of unread rows, 44 avatar, "**maya** liked your post. 12m", 44 thumbnail (opens the post) or Follow / Following (follows open the profile). Likes on the same post in the same section are grouped: "tom and 2 others liked your post." (design.md §6 conflict 4). Opening Activity clears the Home heart dot; rows keep their dots until you leave
+- [x] Store and hooks in `src/lib/inbox.tsx` (`useConversations`, `useThread`, `useMembers`, `useActivity`, `useUnread`). The Home heart and Messages tab dots are now derived from it (the fixed `mockUnread` flags are gone). In-memory: resets on reload
+- [x] Sample data: conversations matching 14a / 15 (maya and lola unread), activity matching 16a, and **3 posts of your own** (Activity needs something to point at). So your profile now shows 11a; delete the three posts to see 11b
+- [x] Dev-only "Clear messages" on the temporary Settings screen, to see 14b
+
+Open items for this area:
+- **TEMPORARY** "Seen" is faked 2.5 s after you send. Nobody replies.
+- Tapping a photo message does nothing (no full-screen viewer on the board).
+- The thread's bottom safe-area padding stays while the keyboard is open, leaving a small gap above the keyboard on phones with a gesture bar. Same as the composer.
+- Activity rows for a post that's since been deleted show no thumbnail and open the person. Phase 9 should delete those notifications with the post.
+- Sending a post to someone from the share sheet (8a / 8b) comes in Phase 5; the store already accepts `{ kind: "post", postId }`.
 
 ### Phase 7 — Settings and safety (UI)
 Screens 17–19, 21.

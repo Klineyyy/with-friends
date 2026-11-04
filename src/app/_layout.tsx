@@ -13,6 +13,7 @@ import * as SystemUI from "expo-system-ui";
 import { useEffect } from "react";
 
 import { useAuth } from "@/lib/auth";
+import { InboxProvider } from "@/lib/inbox";
 import { PostsProvider } from "@/lib/posts";
 import { useColors, useScheme } from "@/theme";
 
@@ -39,7 +40,9 @@ export default function RootLayout() {
     <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
       <SchemeChrome />
       <PostsProvider>
-        <RootStack />
+        <InboxProvider>
+          <RootStack />
+        </InboxProvider>
       </PostsProvider>
     </ClerkProvider>
   );
@@ -91,6 +94,8 @@ function RootStack() {
         <Stack.Screen name="follows/[id]" options={{ animation: "default" }} />
         <Stack.Screen name="edit-profile" options={{ animation: "default" }} />
         <Stack.Screen name="settings" options={{ animation: "default" }} />
+        <Stack.Screen name="thread/[id]" options={{ animation: "default" }} />
+        <Stack.Screen name="new-message" options={{ animation: "default" }} />
       </Stack.Protected>
     </Stack>
   );

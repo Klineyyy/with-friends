@@ -220,6 +220,52 @@ export const mockPosts: MockPost[] = [
   },
 ];
 
+/** Your own posts, so Activity (board 16a) has something to point at. */
+mockPosts.push(
+  {
+    id: "p_me_dog",
+    shortId: "d0g5",
+    authorId: ME_ID,
+    mediaType: "image",
+    mediaUri: photo(1012, 1080, 1350),
+    width: 1080,
+    height: 1350,
+    caption: "Bruno came for a walk.",
+    likedBy: ["u_maya"],
+    comments: [
+      { id: "c_me1", authorId: "u_lola", body: "Bring Bruno on Sunday!", createdAt: ago(HOUR) },
+    ],
+    createdAt: ago(3 * HOUR),
+  },
+  {
+    id: "p_me_cafe",
+    shortId: "caf3",
+    authorId: ME_ID,
+    mediaType: "image",
+    mediaUri: photo(431, 1080, 1080),
+    width: 1080,
+    height: 1080,
+    caption: "Found a new place.",
+    likedBy: ["u_tom", "u_priya", "u_ana"],
+    comments: [
+      { id: "c_me2", authorId: "u_ben", body: "Where is this café?", createdAt: ago(3 * DAY) },
+    ],
+    createdAt: ago(3 * DAY + 2 * HOUR),
+  },
+  {
+    id: "p_me_field",
+    shortId: "f1ld",
+    authorId: ME_ID,
+    mediaType: "image",
+    mediaUri: photo(1001, 1080, 720),
+    width: 1080,
+    height: 720,
+    likedBy: ["u_jules"],
+    comments: [],
+    createdAt: ago(6 * DAY),
+  },
+);
+
 /** Older photos so Explore and profile grids look lived-in. No likes or comments. */
 const olderPhotos: [authorId: string, picsumId: number, daysAgo: number, caption?: string][] = [
   ["u_maya", 1015, 7, "River walk."],
@@ -273,5 +319,128 @@ export const mockFollowGraph: Record<string, string[]> = {
   u_nina: ["u_maya", "u_lola", ME_ID],
 };
 
-/** Unread markers for the header heart and the Messages tab. */
-export const mockUnread = { activity: true, messages: true };
+// ─── Messages (board 14a, 15) ────────────────────────────────────────────────
+
+export type MockMessage = {
+  id: string;
+  senderId: string;
+  kind: "text" | "image" | "post";
+  /** Text messages, up to 1,000 characters (scope A10). */
+  body?: string;
+  /** Photo messages. */
+  imageUri?: string;
+  width?: number;
+  height?: number;
+  /** Shared-post cards. */
+  postId?: string;
+  createdAt: number;
+};
+
+/** One-to-one, so a conversation is keyed by the other person. */
+export type MockConversation = {
+  userId: string;
+  /** Oldest first. */
+  messages: MockMessage[];
+  /** When you last read it. Their messages after this are unread. */
+  lastReadAt: number;
+  /** When they last read it. Your last message shows "Seen" once this passes it. */
+  theirLastReadAt: number;
+};
+
+let msgSeq = 0;
+const msg = (senderId: string, at: number, m: Omit<MockMessage, "id" | "senderId" | "createdAt">): MockMessage => ({
+  id: `m${++msgSeq}`,
+  senderId,
+  createdAt: ago(at),
+  ...m,
+});
+const text = (senderId: string, at: number, body: string) => msg(senderId, at, { kind: "text", body });
+
+export const mockConversations: MockConversation[] = [
+  {
+    userId: "u_maya",
+    messages: [
+      text("u_maya", 70 * MINUTE, "Did you all get home ok?"),
+      text(ME_ID, 68 * MINUTE, "Yes, the kids slept the whole drive."),
+      msg(ME_ID, 40 * MINUTE, { kind: "post", postId: "p_lake" }),
+      text(ME_ID, 40 * MINUTE, "Did you see tom's photo? Sending it to lola too."),
+      text("u_maya", 3 * MINUTE, "Bruno says hi"),
+      msg("u_maya", 2 * MINUTE, { kind: "image", imageUri: photo(237, 800, 1000), width: 800, height: 1000 }),
+    ],
+    lastReadAt: ago(30 * MINUTE),
+    theirLastReadAt: ago(3 * MINUTE),
+  },
+  {
+    userId: "u_lola",
+    messages: [
+      text(ME_ID, 5 * HOUR, "Are we still on for Sunday?"),
+      text("u_lola", HOUR, "Sunday lunch at 12, bring the kids"),
+    ],
+    lastReadAt: ago(5 * HOUR),
+    theirLastReadAt: ago(HOUR),
+  },
+  {
+    userId: "u_tom",
+    messages: [
+      text("u_tom", 4 * HOUR, "It wasn't that cold."),
+      text(ME_ID, 3 * HOUR, "Ha, the water really was cold"),
+    ],
+    lastReadAt: ago(3 * HOUR),
+    theirLastReadAt: ago(2 * HOUR),
+  },
+  {
+    userId: "u_ben",
+    messages: [msg("u_ben", 4 * DAY, { kind: "post", postId: "p_bruno" })],
+    lastReadAt: ago(3 * DAY),
+    theirLastReadAt: ago(4 * DAY),
+  },
+  {
+    userId: "u_ana",
+    messages: [
+      msg(ME_ID, 5 * DAY + HOUR, { kind: "image", imageUri: photo(1011, 1080, 720), width: 1080, height: 720 }),
+      text("u_ana", 5 * DAY, "Thanks for the photos!"),
+    ],
+    lastReadAt: ago(5 * DAY),
+    theirLastReadAt: ago(5 * DAY),
+  },
+  {
+    userId: "u_jules",
+    messages: [
+      text("u_jules", 8 * DAY + HOUR, "Party's at 7 on Saturday."),
+      text(ME_ID, 8 * DAY, "See you at the party"),
+    ],
+    lastReadAt: ago(8 * DAY),
+    theirLastReadAt: ago(7 * DAY),
+  },
+  {
+    userId: "u_priya",
+    messages: [text("u_priya", 16 * DAY, "That cake looked amazing")],
+    lastReadAt: ago(15 * DAY),
+    theirLastReadAt: ago(16 * DAY),
+  },
+];
+
+// ─── Activity (board 16a) ────────────────────────────────────────────────────
+
+export type MockActivity = {
+  id: string;
+  actorId: string;
+  type: "like" | "comment" | "follow";
+  postId?: string;
+  /** Comment text, for "commented: “…”". */
+  body?: string;
+  read: boolean;
+  createdAt: number;
+};
+
+export const mockActivity: MockActivity[] = [
+  { id: "a1", actorId: "u_maya", type: "like", postId: "p_me_dog", read: false, createdAt: ago(12 * MINUTE) },
+  { id: "a2", actorId: "u_lola", type: "comment", postId: "p_me_dog", body: "Bring Bruno on Sunday!", read: false, createdAt: ago(HOUR) },
+  { id: "a3", actorId: "u_nina", type: "follow", read: true, createdAt: ago(3 * HOUR) },
+  { id: "a4", actorId: "u_tom", type: "like", postId: "p_me_cafe", read: true, createdAt: ago(2 * DAY) },
+  { id: "a5", actorId: "u_priya", type: "like", postId: "p_me_cafe", read: true, createdAt: ago(2 * DAY + 2 * HOUR) },
+  { id: "a6", actorId: "u_ana", type: "like", postId: "p_me_cafe", read: true, createdAt: ago(2 * DAY + 5 * HOUR) },
+  { id: "a7", actorId: "u_ben", type: "comment", postId: "p_me_cafe", body: "Where is this café?", read: true, createdAt: ago(3 * DAY) },
+  { id: "a8", actorId: "u_ana", type: "follow", read: true, createdAt: ago(4 * DAY) },
+  { id: "a9", actorId: "u_jules", type: "like", postId: "p_me_field", read: true, createdAt: ago(5 * DAY) },
+];

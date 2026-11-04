@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 
 import { Avatar, Button, Text } from "@/components/ui";
@@ -9,8 +10,10 @@ import { space } from "@/theme";
 /**
  * 44 avatar + username over display name + Follow / Following. design.md §1.
  * Tap the person to open their profile. Your own row shows "You" (board 9).
+ * `action` replaces the Follow button (e.g. Message on board 14b; `null` = none),
+ * `onPress` replaces opening the profile.
  */
-export function PersonRow({ user }: { user: User }) {
+export function PersonRow({ user, action, onPress }: { user: User; action?: ReactNode; onPress?: () => void }) {
   const { isFollowing, follow, unfollow } = useFollowing();
   const following = isFollowing(user.id);
   const isMe = user.id === ME_ID;
@@ -20,7 +23,7 @@ export function PersonRow({ user }: { user: User }) {
       <Pressable
         accessibilityRole="link"
         accessibilityLabel={`${user.username}, ${user.displayName}`}
-        onPress={() => openProfile(user.id)}
+        onPress={onPress ?? (() => openProfile(user.id))}
         style={({ pressed }) => [styles.person, pressed && styles.pressed]}
       >
         <Avatar uri={user.avatarUri} size={44} />
@@ -35,7 +38,9 @@ export function PersonRow({ user }: { user: User }) {
           ) : null}
         </View>
       </Pressable>
-      {isMe ? (
+      {action !== undefined ? (
+        action
+      ) : isMe ? (
         <Text variant="meta" tone="secondary">
           You
         </Text>

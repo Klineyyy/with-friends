@@ -6,7 +6,6 @@ import {
   mockFollowGraph,
   mockFollowing,
   mockPosts,
-  mockUnread,
   mockUsers,
   type MockComment,
   type MockPost,
@@ -54,7 +53,6 @@ type State = {
   /** TEMPORARY: your edits, in memory until Convex owns the profile. `null` = not edited yet. */
   profile: ProfileEdits | null;
   uploads: Upload[];
-  unread: { activity: boolean; messages: boolean };
 };
 
 type Action =
@@ -158,7 +156,6 @@ export function PostsProvider({ children }: { children: ReactNode }) {
     following: mockFollowing,
     profile: null,
     uploads: [],
-    unread: mockUnread,
   }));
 
   const me: User = useMemo(
@@ -253,6 +250,15 @@ export function usePost(id: string | undefined): Post | null {
   return state.posts.find((p) => p.id === id) ?? null;
 }
 
+/** Look up posts by ID; `null` = deleted. For lists that show many posts (Activity). */
+export function usePosts() {
+  const { state } = useStore();
+  return useMemo(() => {
+    const byId = new Map(state.posts.map((p) => [p.id, p]));
+    return (id: string | undefined): Post | null => (id ? (byId.get(id) ?? null) : null);
+  }, [state.posts]);
+}
+
 export function useFollowing() {
   const { state, dispatch } = useStore();
   const following = state.following;
@@ -281,10 +287,6 @@ export function usePostActions() {
     setLiked: (postId: string, liked: boolean) => dispatch({ type: "toggleLike", postId, liked }),
     deletePost: (postId: string) => dispatch({ type: "deletePost", postId }),
   };
-}
-
-export function useUnread() {
-  return useStore().state.unread;
 }
 
 /** Share a new post and watch its upload. */

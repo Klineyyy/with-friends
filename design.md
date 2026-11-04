@@ -158,7 +158,7 @@ Shown for 4 (Home feed), 11a (Your profile), 14a (Messages). Pure black backgrou
 **Appearance choice (2026-11-04, your call):** System (default) · Light · Dark, as a segmented control. It sits on a temporary Settings screen (≡ on your profile) until Settings (17) is built in Phase 7, where it becomes an "Appearance" row. Not on the board.
 
 ### Not on the board (design needed or derive from the system)
-Edit profile *(built in Phase 4 from the system: name + bio, Save in the top bar)* · Blocked users list · Community rules / Terms pages · New-message picker (✎) · Post detail (from Activity or a link) · Message thread ⋯ menu · Report comment / user sheets (reuse 19) · Camera capture · Video playback controls · Offline / generic error states · Push permission prompt.
+Edit profile *(built in Phase 4 from the system: name + bio, Save in the top bar)* · Blocked users list · Community rules / Terms pages · New-message picker (✎) *(built in Phase 6 like 8b: ✕ "New message", search, members)* · Post detail (from Activity or a link) · Message thread ⋯ menu *(built in Phase 6: View profile, Block, Report)* · Report comment / user sheets (reuse 19) · Camera capture · Video playback controls · Offline / generic error states · Push permission prompt.
 
 ## 3. Mapping to NativeWind
 
@@ -190,7 +190,7 @@ Exact syntax depends on the NativeWind version chosen (v4 `tailwind.config.js` v
 1. **Native tabs vs floating tab bar.** The board shows a floating, outlined pill bar inset from the edges. `expo-router/native-tabs` uses the platform's own bar (Material bottom navigation on Android) and can't be shaped like this. Options: (a) build a custom JS tab bar with Expo Router `Tabs` to match the board; (b) keep native tabs and accept the platform look, applying only colours. **Decided: (a) custom floating tab bar** (2026-11-04), styled as iOS-inspired glass (see §1 Tab bar). Native glass tabs were tried and reverted.
 2. **Tab order.** Board: Home · Explore · Messages · Profile. Original brief: Home · Messages · Explore · Profile. Board order assumed unless you say otherwise.
 3. **Account deletion and messages.** Board (17, 21) says deletion removes "messages for everyone". Scope says their messages stay, shown as "Deleted user". Pick one.
-4. **Activity grouping.** Board 16a shows "tom and 2 others liked your post." Scope says one item per event, no grouping. Possible reading: Activity groups likes, push does not.
+4. **Activity grouping.** Board 16a shows "tom and 2 others liked your post." Scope says one item per event, no grouping. Possible reading: Activity groups likes, push does not. **Built that way in Phase 6** (likes on the same post within a Today / This week section become one row; push stays one per event). Easy to switch off in `buildSections` in `src/app/activity.tsx`.
 5. **In-app photo grid (6.1).** A custom gallery grid needs broad photo/video permissions (`READ_MEDIA_IMAGES` / `READ_MEDIA_VIDEO`). Google Play restricts these for apps that only need occasional access and expects the system photo picker instead. Options: use the system picker (look differs from 6.1), or justify broad access in the Play declaration. **Built with the system picker** in Phase 3 (recommended option).
 6. **"Share with apps" row (8a).** Copy is easy; Nearby, Messages, Email can't be targeted individually from React Native — one "More…" button opening the system share sheet is the realistic version.
 7. **Share link domain.** Board uses `withfriends.app/p/8kq2` (short IDs). Needs a domain and a short-ID field on posts.
