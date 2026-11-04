@@ -13,6 +13,7 @@ export function UploadStatusRow({ upload, onRetry }: Props) {
   const colors = useColors();
   const failed = upload.status === "failed";
   const isVideo = upload.draft.mediaType === "video";
+  const thumbUri = isVideo ? upload.draft.posterUri : upload.draft.uri;
 
   return (
     <Pressable
@@ -23,11 +24,10 @@ export function UploadStatusRow({ upload, onRetry }: Props) {
       style={[styles.row, { borderBottomColor: colors.divider }]}
     >
       <View style={[styles.thumb, { backgroundColor: colors.surface }]}>
-        {isVideo ? (
-          <Play size={16} strokeWidth={1.75} color={colors.textSecondary} />
-        ) : (
-          <Image source={{ uri: upload.draft.uri }} style={StyleSheet.absoluteFill} contentFit="cover" />
-        )}
+        {thumbUri ? (
+          <Image source={{ uri: thumbUri }} style={StyleSheet.absoluteFill} contentFit="cover" />
+        ) : null}
+        {isVideo ? <Play size={16} strokeWidth={1.75} color={thumbUri ? "#FFFFFF" : colors.textSecondary} /> : null}
       </View>
       {failed ? (
         <>

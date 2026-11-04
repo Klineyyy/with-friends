@@ -30,6 +30,8 @@ export type PostDraft = {
   uri: string;
   width: number;
   height: number;
+  /** Poster frame made on device for videos (scope A13). */
+  posterUri?: string;
   durationMs?: number;
   caption?: string;
 };
@@ -119,8 +121,8 @@ function draftToPost({ id, draft }: Upload): Post {
     authorId: ME_ID,
     mediaType: draft.mediaType,
     mediaUri: draft.uri,
-    // No poster frame yet for your own videos (needs expo-video-thumbnails, scope A13).
-    posterUri: undefined,
+    // Made on device in the composer; missing on a dev build without expo-video.
+    posterUri: draft.posterUri,
     width: draft.width,
     height: draft.height,
     durationMs: draft.durationMs,

@@ -35,7 +35,16 @@
         }
       ],
       "@clerk/expo",
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-video",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "With Friends uses your photos so you can share them with your friends.",
+          "cameraPermission": "With Friends uses the camera so you can take photos and videos to share.",
+          "microphonePermission": "With Friends uses the microphone to record sound with your videos."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

@@ -53,7 +53,9 @@ Env (`.env`, git-ignored): `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` (in the app), `CL
 | `react-native-svg` | 15.16.0 | SVG rendering (logo mark, icons) |
 | `lucide-react-native` | ^1.68.0 | Line icons (24 px, stroke 1.75) |
 | `@expo-google-fonts/roboto` | ^0.4.3 | Roboto 400 / 500 / 600, loaded in the root layout |
-| `expo-image-picker` | ~58.0.10 | System photo picker (onboarding avatar; later posts) |
+| `expo-image-picker` | ~58.0.10 | System photo picker and system camera (onboarding avatar, new posts). Config plugin sets camera / microphone / photos permission text |
+| `expo-image-manipulator` | ~58.0.16 | Resizes and re-encodes photos before upload. Native: needs a dev-build rebuild |
+| `expo-video` | ~58.0.13 | Poster frames for your own videos (`generateThumbnailsAsync`); feed playback later. Config plugin `expo-video`. Native: needs a dev-build rebuild |
 
 Styling is plain `StyleSheet` using the typed tokens in `src/theme/` (colours light/dark, type scale, spacing). NativeWind is not installed yet; see the decisions table in [implementation.md](implementation.md).
 
@@ -80,7 +82,7 @@ Styling is plain `StyleSheet` using the typed tokens in `src/theme/` (colours li
 - Name `With Friends`, slug `with-friends`, scheme `withfriends`, Android package `com.klinegarcia.withfriends`
 - Portrait only, `userInterfaceStyle: automatic` (light + dark)
 - iOS icon: `assets/expo.icon`; Android adaptive icon with monochrome layer, predictive back gesture off
-- Plugins: `expo-router`, `expo-splash-screen`, `@clerk/expo`, `expo-secure-store`
+- Plugins: `expo-router`, `expo-splash-screen`, `@clerk/expo`, `expo-secure-store`, `expo-video`, `expo-image-picker` (permission text)
 - Experiments: `typedRoutes`, `reactCompiler` (React Compiler on)
 
 **`tsconfig.json`**

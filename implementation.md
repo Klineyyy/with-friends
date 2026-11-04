@@ -60,19 +60,29 @@ Board screens 4, 5, 6.3–6.4.
 - [x] Explore, Messages, Profile tabs are placeholders. Profile has Sign out and, in dev builds only, "Unfollow everyone" to see the empty Home
 
 Open items for this area:
-- Feed videos don't play: needs `expo-video` (native, so a dev-build rebuild). Your own video posts show a dark tile instead of a poster until `expo-video-thumbnails` makes one on device (scope A13).
+- Feed videos don't play yet (`expo-video` is installed for posters; playback UI not built). Your own video posts get a poster made on device (Phase 3).
 - Share button uses the system share sheet with `withfriends.app/p/{shortId}` until the in-app share sheet (8a, Phase 5).
 - Comment icon and "View all N comments" open `post/[id]`; the comments sheet (7) replaces that in Phase 5. "Liked by…" isn't tappable yet (9, Phase 5).
 - Pull to refresh only shows the spinner (nothing to refetch with mock data).
 
-### Phase 3 — Posting (UI) ✅ mostly done
+### Phase 3 — Posting (UI) ✅ done (needs a dev-build rebuild for compression and posters)
 Flow 6.
 
-- [x] ⊞ opens the **system photo picker** (photos and videos), not the 6.1 in-app grid (design.md §6.5, Play media-permission rules): `src/lib/pick-media.ts`
+- [x] ⊞ opens a "New post" chooser: **Take photo · Record video · Choose from library** (action sheet on iOS, alert on Android): `src/lib/pick-media.ts`
+- [x] Library = the **system photo picker** (photos and videos), not the 6.1 in-app grid (design.md §6.5, Play media-permission rules)
+- [x] Camera = the **system camera** via `launchCameraAsync` (stands in for 6.1's Camera tile). Asks for camera permission; if it was refused for good, offers Open Settings. Video recording asks the camera app to stop at 30 s (`videoMaxDuration`); the composer still checks the length, since not every Android camera app honours it
 - [x] `new-post` (6.2): ← "New post" [Share], preview, "✓ 0:24 of 0:30. Fits the 30 second limit." (or an over-limit message that disables Share; also 50 MB), avatar + caption (2,200 max), video hint
 - [x] Share → back to Home with the upload row. **TEMPORARY** fake upload: ~2.5 s, about 1 in 5 attempts fails so the retry row can be seen
-- [ ] Camera capture (6.1's Camera tile) — not built; the system picker has no camera option on Android
-- [ ] Image compression beyond the picker's `quality: 0.8` (e.g. resize long edge) — decide with Phase 9 uploads
+- [x] **On-device prep** in the composer (`src/lib/prepare-media.ts`), while you write the caption; a small spinner shows and Share waits for it:
+  - Photos: long edge capped at 2048 px, re-encoded as JPEG 0.8 (`expo-image-manipulator`)
+  - Videos: poster frame at 0.5 s, max 1080 px, saved as JPEG (`expo-video` `generateThumbnailsAsync`, scope A13). Shown in the composer, the upload row and the feed
+  - Both modules are imported only when the binary has them (`src/lib/native.ts`). On an older dev build, photos upload as picked and videos show the dark tile; nothing crashes
+- [x] Camera, microphone and photos permission text set in `app.json` (`expo-image-picker` plugin)
+
+Open items for this area:
+- **Rebuild the dev build**: `expo-video` and `expo-image-manipulator` are new native code, and the permission text is native config.
+- Android can kill the app while the camera is open on low-memory phones; the photo is then lost. `ImagePicker.getPendingResultAsync()` can recover it. Not handled yet.
+- Feed video playback (`expo-video` is now installed, so this is just UI work).
 
 ### Phase 4 — Explore, profiles, follows (UI)
 Screens 10a–13.
@@ -127,6 +137,9 @@ Still to do before it runs:
 | Custom floating tab bar (`expo-router/js-tabs`), not native tabs | Matches the board's floating pill; native tabs can't be shaped like it (design.md §6.1). Native glass tabs were tried and reverted (2026-11-04) | If the JS tab bar feels slow on low-end Android |
 | Glass look on the custom bar (Liquid Glass / blur), not the board's flat outline | Your call (2026-11-04) | If Android blur costs frames while scrolling the feed: drop to `blurMethod="none"` (tint only) |
 | System photo picker for new posts, not the 6.1 in-app grid | No broad photo/video permission, which Google Play restricts (design.md §6.5) | — |
+| System camera app for capture, not an in-app camera (`expo-camera`) | No custom camera UI to build or keep working across Android devices; the board has no camera design | If you want an in-app camera screen |
+| Poster frames from `expo-video`, not `expo-video-thumbnails` | `expo-video-thumbnails` is deprecated; `expo-video` is needed for playback anyway | — |
+| Photos capped at 2048 px long edge, JPEG 0.8 | Sharp on phone screens, a few hundred KB, small next to Convex storage limits (scope §11.4) | If photos look soft, or storage gets tight |
 | Sample photos from picsum.photos by fixed ID | No binary assets in the repo for throwaway data; same images every launch | Phase 9 (real uploads) |
 | `lucide-react-native` for icons | Line style matches the board; stroke width is adjustable | — |
 | Roboto bundled on both platforms | design.md: Roboto everywhere | — |

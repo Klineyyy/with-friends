@@ -1,13 +1,14 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { Check, CircleAlert } from "lucide-react-native";
-import { useState } from "react";
-import { KeyboardAvoidingView, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { useEffect, useState } from "react";
+import { ActivityIndicator, KeyboardAvoidingView, ScrollView, StyleSheet, TextInput, View } from "react-native";
 
 import { MediaView } from "@/components/post/MediaView";
 import { TopBar } from "@/components/TopBar";
 import { Avatar, Button, Text } from "@/components/ui";
 import { formatDuration, POST_LIMITS } from "@/lib/format";
 import { useMe, useUploads } from "@/lib/posts";
+import { compressImage, makeVideoPoster } from "@/lib/prepare-media";
 import { space, typeScale, useColors } from "@/theme";
 
 type Params = {
@@ -18,6 +19,9 @@ type Params = {
   durationMs?: string;
   fileSize?: string;
 };
+
+/** What gets uploaded: the compressed photo, or the video plus its poster frame. */
+type Prepared = { uri: string; width: number; height: number; posterUri?: string };
 
 /** Board 6.2: preview, 30 s check, caption, Share. */
 export default function NewPost() {
@@ -35,14 +39,17 @@ export default function NewPost() {
 
   const tooLong = isVideo && durationMs !== undefined && durationMs > POST_LIMITS.videoMaxMs;
   const tooBig = isVideo && fileSize !== undefined && fileSize > POST_LIMITS.videoMaxBytes;
-  const canShare = !!params.uri && !tooLong && !tooBig;
+  const prepared = usePreparedMedia(params.uri, isVideo, width, height);
+  const canShare = !!params.uri && !!prepared && !tooLong && !tooBig;
 
   function onShare() {
+    if (!prepared) return;
     share({
       mediaType: isVideo ? "video" : "image",
-      uri: params.uri,
-      width,
-      height,
+      uri: prepared.uri,
+      width: prepared.width,
+      height: prepared.height,
+      posterUri: prepared.posterUri,
       durationMs,
       caption,
     });
@@ -68,14 +75,19 @@ export default function NewPost() {
         <MediaView
           post={{
             mediaType: isVideo ? "video" : "image",
-            mediaUri: params.uri,
-            posterUri: undefined,
-            width,
-            height,
+            mediaUri: prepared?.uri ?? params.uri,
+            posterUri: prepared?.posterUri,
+            width: prepared?.width ?? width,
+            height: prepared?.height ?? height,
             durationMs,
           }}
           accessibilityLabel={isVideo ? "Selected video" : "Selected photo"}
         />
+        {!prepared ? (
+          <View style={styles.preparing} pointerEvents="none">
+            <ActivityIndicator color={colors.textSecondary} accessibilityLabel="Getting it ready" />
+          </View>
+        ) : null}
 
         {isVideo && durationMs !== undefined ? (
           <View style={[styles.check, { borderBottomColor: colors.divider }]}>
@@ -120,8 +132,32 @@ export default function NewPost() {
   );
 }
 
+/**
+ * Compresses a photo, or makes a poster frame for a video, while you write the
+ * caption. Undefined until done; Share waits for it. Never fails: on error the
+ * original file is used (and videos go without a poster).
+ */
+function usePreparedMedia(uri: string, isVideo: boolean, width: number, height: number) {
+  const [prepared, setPrepared] = useState<Prepared>();
+  useEffect(() => {
+    if (!uri) return;
+    let cancelled = false;
+    const work = isVideo
+      ? makeVideoPoster(uri).then((posterUri) => ({ uri, width, height, posterUri }))
+      : compressImage(uri, width, height);
+    void work.then((result) => {
+      if (!cancelled) setPrepared(result);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [uri, isVideo, width, height]);
+  return prepared;
+}
+
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  preparing: { position: "absolute", top: space.md, right: space.screenEdge },
   shareButton: { marginRight: 10 },
   check: {
     flexDirection: "row",
