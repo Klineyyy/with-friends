@@ -155,6 +155,8 @@ Numbers match the board.
 ### Dark mode
 Shown for 4 (Home feed), 11a (Your profile), 14a (Messages). Pure black background, white text, `#A3E635` fern, dark tab bar pill. Every other screen follows the same token swap.
 
+**Appearance choice (2026-11-04, your call):** System (default) · Light · Dark, as a segmented control. It sits on the Profile placeholder until Settings (17) is built in Phase 7, where it becomes an "Appearance" row. Not on the board.
+
 ### Not on the board (design needed or derive from the system)
 Edit profile · Blocked users list · Community rules / Terms pages · New-message picker (✎) · Post detail (from Activity or a link) · Message thread ⋯ menu · Report comment / user sheets (reuse 19) · Camera capture · Video playback controls · Offline / generic error states · Push permission prompt.
 

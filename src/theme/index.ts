@@ -1,6 +1,9 @@
 import { useColorScheme } from "react-native";
 
+import { useAppearancePref } from "./appearance";
 import { palette, type Colors } from "./colors";
+
+export { setAppearancePref, useAppearancePref, type AppearancePref } from "./appearance";
 
 export { fonts, typeScale, type TypeVariant } from "./typography";
 export type { Colors };
@@ -17,6 +20,14 @@ export const space = {
 
 export const radius = { button: 8, input: 8 } as const;
 
+/** Light or dark after applying the user's Appearance choice (default: follow the phone). */
+export function useScheme(): "light" | "dark" {
+  const pref = useAppearancePref();
+  const system = useColorScheme();
+  if (pref !== "system") return pref;
+  return system === "dark" ? "dark" : "light";
+}
+
 export function useColors(): Colors {
-  return useColorScheme() === "dark" ? palette.dark : palette.light;
+  return palette[useScheme()];
 }

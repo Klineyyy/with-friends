@@ -65,7 +65,7 @@ Styling is plain `StyleSheet` using the typed tokens in `src/theme/` (colours li
 |---|---|---|
 | `expo-splash-screen` | ~58.0.13 | Config plugin: background `#208AEF`, 76 px icon |
 | `expo-status-bar` | ~58.0.4 | Status bar control |
-| `expo-system-ui` | ~58.0.7 | Root background colour, light/dark |
+| `expo-system-ui` | ~58.0.7 | Root background colour, follows the light/dark choice |
 | `expo-constants` | ~58.0.15 | App config at runtime |
 | `expo-device` | ~58.0.5 | Device info |
 | `expo-web-browser` | ~58.0.7 | In-app browser (auth flows, links) |

@@ -4,6 +4,7 @@ export { Checkbox } from "./Checkbox";
 export { IconButton } from "./IconButton";
 export { Logo, LogoMark } from "./Logo";
 export { Screen } from "./Screen";
+export { SegmentedControl } from "./SegmentedControl";
 export { Text } from "./Text";
 export { TextField } from "./TextField";
 export { UnreadDot } from "./UnreadDot";

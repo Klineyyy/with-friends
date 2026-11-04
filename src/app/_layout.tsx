@@ -9,11 +9,12 @@ import {
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
+import * as SystemUI from "expo-system-ui";
 import { useEffect } from "react";
 
 import { useAuth } from "@/lib/auth";
 import { PostsProvider } from "@/lib/posts";
-import { useColors } from "@/theme";
+import { useColors, useScheme } from "@/theme";
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ?? "";
 
@@ -36,12 +37,22 @@ export default function RootLayout() {
 
   return (
     <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
-      <StatusBar style="auto" />
+      <SchemeChrome />
       <PostsProvider>
         <RootStack />
       </PostsProvider>
     </ClerkProvider>
   );
+}
+
+/** Status bar icons and the root window colour follow the light/dark choice. */
+function SchemeChrome() {
+  const scheme = useScheme();
+  const colors = useColors();
+  useEffect(() => {
+    SystemUI.setBackgroundColorAsync(colors.background).catch(() => {});
+  }, [colors.background]);
+  return <StatusBar style={scheme === "dark" ? "light" : "dark"} />;
 }
 
 /** Each auth state unlocks exactly one part of the app. */

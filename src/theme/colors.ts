@@ -1,4 +1,4 @@
-/** Design tokens from design.md §1. Light/dark follow the system setting. */
+/** Design tokens from design.md §1. Light/dark follow the system unless the user picks one (appearance.ts). */
 export const palette = {
   light: {
     background: "#FFFFFF",

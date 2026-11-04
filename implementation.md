@@ -32,6 +32,7 @@ src/
 Board screens 1–3.
 
 - [x] Theme tokens (`src/theme`), Roboto via `@expo-google-fonts/roboto`; the splash screen stays up until fonts load
+- [x] Appearance choice: System / Light / Dark (`src/theme/appearance.ts`, `useAppearancePref`, `setAppearancePref`). Saved in `expo-secure-store`, read synchronously at startup. Picker is on the Profile placeholder; moves to Settings in Phase 7. Use `useScheme()` / `useColors()`, never RN `useColorScheme()` directly
 - [x] UI primitives: `Text`, `Button` (primary / secondary / disabled, large / compact), `TextField`, `Checkbox`, `Avatar`, `Logo` / `LogoMark` (SVG fish), `Screen`
 - [x] `sign-in` (1), `onboarding` (3). Screen 2 (Not invited) was built, then dropped with invite-only
 - [x] Route guards with `Stack.Protected` driven by an auth status
@@ -141,6 +142,7 @@ Still to do before it runs:
 | Poster frames from `expo-video`, not `expo-video-thumbnails` | `expo-video-thumbnails` is deprecated; `expo-video` is needed for playback anyway | — |
 | Photos capped at 2048 px long edge, JPEG 0.8 | Sharp on phone screens, a few hundred KB, small next to Convex storage limits (scope §11.4) | If photos look soft, or storage gets tight |
 | Sample photos from picsum.photos by fixed ID | No binary assets in the repo for throwaway data; same images every launch | Phase 9 (real uploads) |
+| Light/dark override via RN `Appearance.setColorScheme`, saved in `expo-secure-store` | Native views (glass tab bar, alerts, keyboard) switch too, not only our colours. Secure store is already in the dev build, so no rebuild; a theme setting isn't secret, but adding a key-value store just for this isn't worth a native rebuild | If another non-secret setting needs storing: move these to `expo-sqlite/kv-store` |
 | `lucide-react-native` for icons | Line style matches the board; stroke width is adjustable | — |
 | Roboto bundled on both platforms | design.md: Roboto everywhere | — |
 | `Stack.Protected` route guards | Each auth state unlocks exactly one set of routes; Clerk slots in without changing routes | — |

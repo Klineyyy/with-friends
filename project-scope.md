@@ -145,7 +145,7 @@ All IDs are Convex document IDs. Counts are stored on the parent record and upda
 - **A3.** New users with no follows see a Home empty state pointing to Explore and suggested members.
 - **A4.** No typing indicators; read receipts yes.
 - **A5.** Moderation = block + report, reviewed manually in the Convex dashboard (required by Google Play's UGC policy).
-- **A6.** Light/dark mode follows the system setting.
+- **A6.** Light/dark mode follows the system setting by default; the user can force Light or Dark in Appearance (saved on the device). Confirmed 2026-11-04.
 - **A7.** CI runs on **GitHub Actions**. The repo has no remote yet, so this needs a GitHub repo. EAS Workflows is the alternative.
 - **A8.** Clerk **Invite-only** access mode; you send invites from the Clerk dashboard.
 - **A9.** Feed is computed on read; no fan-out tables.
