@@ -113,38 +113,9 @@ All IDs are Convex document IDs. Counts are stored on the parent record and upda
 - **Push:** a mutation writes a `notifications` row and schedules an action that checks preferences and "conversation open", then calls Expo Push. A push failure never fails the original action.
 - **Account deletion:** in-app request or Clerk `user.deleted` webhook → scheduled, batched Convex deletion of posts, media, comments, likes, follows, notifications, push tokens.
 
-## 7. Visual direction (frontend-design plan, draft)
+## 7. Visual direction
 
-**Subject:** a private photo album passed around a small group. **Audience:** friends and family, not creators. **Primary job:** show each other's moments clearly.
-
-| Token | Light | Dark | Use |
-|---|---|---|---|
-| Paper | `#FFFFFF` | `#000000` | Backgrounds. True black in dark mode so photos glow on OLED |
-| Ink | `#000000` | `#FFFFFF` | Usernames, body text |
-| Graphite | `#6B6F76` | `#A1A1AA` | Timestamps, secondary text |
-| Hairline | `#E4E4E7` | `#27272A` | Dividers, only where they separate content |
-| Porchlight | `#D97706` | `#FBBF24` | **Only** liked hearts, unread dots, the active tab. The warm light of a family gathering; deliberately not the red heart every other app uses |
-
-- **Type:** platform system font (Roboto / SF Pro). Hierarchy comes from weight, not size: usernames semibold 15, body regular 15, meta 13, screen titles semibold 22. Sentence case everywhere, no all-caps labels.
-- **Layout:** media full-width at its own aspect ratio (clamped 4:5 to 1.91:1). No cards, no shadows, no rounded media in the feed. Everything left-aligned. Explore and profile grids: 3 columns, 1 px gaps, square crops.
-
-```
-Feed item                      Profile
-┌───────────────────────┐      ┌───────────────────────┐
-│ (o) anna_k     2h  ⋯ │      │ (O)  Anna Kovač        │
-├───────────────────────┤      │      anna_k            │
-│                       │      │ Bio line…              │
-│        media          │      │ 12 posts  8 followers  │
-│                       │      │ [Edit profile]         │
-├───────────────────────┤      ├───────┬───────┬───────┤
-│ ♥  💬  ↗              │      │       │       │       │
-│ Liked by tom and 3    │      ├───────┼───────┼───────┤
-│ anna_k Lake day       │      │       │       │       │
-└───────────────────────┘      └───────┴───────┴───────┘
-```
-
-- **Principles:** the photos supply all the colour; the UI is black, white, and grey. Boldness goes in one place: the Porchlight heart and its single like animation. Motion only answers actions (like, send, "Seen"); no entrance animations. Copy is plain and direct ("Share" → "Shared"; "Upload failed. Tap to retry.").
-- **Checked against the brief:** the generic default is a white Instagram clone with a red heart and rounded cards. Changed: the accent is a warm amber tied to the friends-and-family subject; cards and shadows removed; true-black dark mode. To be finalised before UI work.
+**See [design.md](design.md)**, which summarises the design board in [`design/`](design/) (design system + 33 screens). The board is the source of truth for visuals and copy. It supersedes the earlier draft here (amber accent, system font): the accent is **fern green** and the font is **Roboto**. Conflicts between the board and this scope are listed in design.md §6.
 
 ## 8. Edge cases and failure behaviour
 
