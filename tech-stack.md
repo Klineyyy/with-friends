@@ -24,7 +24,7 @@
 | `react-native-safe-area-context` | ~5.11.1 | Safe-area insets |
 | `expo-linking` | ~58.0.16 | Deep links, scheme `withfriends://` |
 
-Current routes: `src/app/_layout.tsx` (a `Stack`) and `src/app/index.tsx` (placeholder screen).
+Current routes (all in `src/app/`): `_layout.tsx` (a `Stack` with `Stack.Protected` auth guards, loads fonts), `sign-in.tsx`, `not-invited.tsx`, `onboarding.tsx`, `index.tsx` (placeholder Home). Auth is mocked in `src/lib/auth.tsx` until Clerk is added — see [implementation.md](implementation.md).
 
 ## UI, animation & gestures
 
@@ -38,8 +38,12 @@ Current routes: `src/app/_layout.tsx` (a `Stack`) and `src/app/index.tsx` (place
 | `react-native-reanimated` | 4.7.1 | Animations |
 | `react-native-worklets` | 0.13.0 | Worklet runtime used by Reanimated 4 |
 | `react-native-gesture-handler` | ~3.3.0 | Gestures |
+| `react-native-svg` | 15.16.0 | SVG rendering (logo mark, icons) |
+| `lucide-react-native` | ^1.68.0 | Line icons (24 px, stroke 1.75) |
+| `@expo-google-fonts/roboto` | ^0.4.3 | Roboto 400 / 500 / 600, loaded in the root layout |
+| `expo-image-picker` | ~58.0.10 | System photo picker (onboarding avatar; later posts) |
 
-Styling today is plain `StyleSheet`. No styling library is installed yet.
+Styling is plain `StyleSheet` using the typed tokens in `src/theme/` (colours light/dark, type scale, spacing). NativeWind is not installed yet; see the decisions table in [implementation.md](implementation.md).
 
 ## App shell & system
 
@@ -79,7 +83,7 @@ Styling today is plain `StyleSheet`. No styling library is installed yet.
 |---|---|
 | `npm start` | `expo start` |
 | `npm run android` / `ios` / `web` | Start dev server for that platform |
-| `npm run lint` | `expo lint` (no ESLint config committed yet; first run sets it up) |
+| `npm run lint` | `expo lint` (`eslint.config.js`, `eslint-config-expo` ~58.0.4, `eslint` ^9) |
 | `npx tsc --noEmit` | Typecheck |
 | `npx expo-doctor` | Check dependencies and config |
 
@@ -89,7 +93,7 @@ Styling today is plain `StyleSheet`. No styling library is installed yet.
 
 | Concern | Planned choice |
 |---|---|
-| Styling | NativeWind (v4 stable or v5 preview, to decide) |
+| Styling | NativeWind (v4 stable or v5 preview, to decide; tokens in `src/theme` for now) |
 | Tabs | `expo-router/native-tabs` |
 | Auth | Clerk (Google + Apple, invite-only) |
 | Backend, database, file storage, realtime | Convex |
