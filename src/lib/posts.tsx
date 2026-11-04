@@ -3,6 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useReducer,
 import { useAuth } from "./auth";
 import {
   ME_ID,
+  mockFollowGraph,
   mockFollowing,
   mockPosts,
   mockUnread,
@@ -44,9 +45,14 @@ export type Upload = {
   status: "uploading" | "failed";
 };
 
+/** Your editable profile fields (board: Edit profile). */
+export type ProfileEdits = { displayName: string; bio: string };
+
 type State = {
   posts: Post[];
   following: string[];
+  /** TEMPORARY: your edits, in memory until Convex owns the profile. `null` = not edited yet. */
+  profile: ProfileEdits | null;
   uploads: Upload[];
   unread: { activity: boolean; messages: boolean };
 };
@@ -59,7 +65,8 @@ type Action =
   | { type: "uploadProgress"; id: string; progress: number }
   | { type: "uploadFail"; id: string }
   | { type: "uploadDone"; id: string; post: Post }
-  | { type: "clearFollowing" };
+  | { type: "clearFollowing" }
+  | { type: "updateProfile"; profile: ProfileEdits };
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
@@ -111,6 +118,8 @@ function reducer(state: State, action: Action): State {
       };
     case "clearFollowing":
       return { ...state, following: [] };
+    case "updateProfile":
+      return { ...state, profile: action.profile };
   }
 }
 
@@ -147,6 +156,7 @@ export function PostsProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, undefined, () => ({
     posts: mockPosts,
     following: mockFollowing,
+    profile: null,
     uploads: [],
     unread: mockUnread,
   }));
@@ -155,10 +165,11 @@ export function PostsProvider({ children }: { children: ReactNode }) {
     () => ({
       id: ME_ID,
       username: account?.username ?? "you",
-      displayName: account?.displayName ?? "",
+      displayName: state.profile?.displayName ?? account?.displayName ?? "",
       avatarUri: account?.avatarUri ?? null,
+      bio: state.profile?.bio,
     }),
-    [account?.username, account?.displayName, account?.avatarUri],
+    [account?.username, account?.displayName, account?.avatarUri, state.profile],
   );
 
   // Upload timers live here, not in a screen, so an upload keeps going after
@@ -285,4 +296,60 @@ export function useUploads() {
       startUpload({ id: Date.now().toString(36), draft, progress: 0, status: "uploading" }),
     retry: (upload: Upload) => startUpload(upload),
   };
+}
+
+const newestFirst = (a: Post, b: Post) => b.createdAt - a.createdAt;
+
+/** Explore grid (board 10a): recent posts from everyone, newest first. */
+export function useExplorePosts(): Post[] {
+  const { state } = useStore();
+  return useMemo(() => [...state.posts].sort(newestFirst), [state.posts]);
+}
+
+/** One person's posts, newest first (profile grid, board 11a / 12). */
+export function useUserPosts(userId: string): Post[] {
+  const { state } = useStore();
+  return useMemo(
+    () => state.posts.filter((p) => p.authorId === userId).sort(newestFirst),
+    [state.posts, userId],
+  );
+}
+
+/** Whether a user ID belongs to a member (or you). Unknown IDs = deleted account. */
+export function userExists(userId: string): boolean {
+  return userId === ME_ID || mockUsers.some((u) => u.id === userId);
+}
+
+/**
+ * Followers and following for anyone (board 13). Your own follows come from the
+ * store, so tapping Follow anywhere updates every list and count.
+ */
+export function useFollowLists(userId: string): { followers: User[]; following: User[] } {
+  const { state } = useStore();
+  const userById = useUsers();
+  return useMemo(() => {
+    const followerIds = mockUsers
+      .filter((u) => mockFollowGraph[u.id]?.includes(userId))
+      .map((u) => u.id);
+    if (userId !== ME_ID && state.following.includes(userId)) followerIds.unshift(ME_ID);
+    const followingIds = userId === ME_ID ? state.following : (mockFollowGraph[userId] ?? []);
+    return { followers: followerIds.map(userById), following: followingIds.map(userById) };
+  }, [state.following, userId, userById]);
+}
+
+/** People search (board 10b): username or display name contains the query. You're left out. */
+export function useSearchPeople(query: string): User[] {
+  return useMemo(() => {
+    const q = query.trim().toLowerCase().replace(/^@/, "");
+    if (!q) return [];
+    return mockUsers.filter(
+      (u) => u.username.includes(q) || u.displayName.toLowerCase().includes(q),
+    );
+  }, [query]);
+}
+
+/** Edit profile: display name and bio. TEMPORARY in memory; a Convex mutation in Phase 9. */
+export function useUpdateProfile() {
+  const { dispatch } = useStore();
+  return (profile: ProfileEdits) => dispatch({ type: "updateProfile", profile });
 }

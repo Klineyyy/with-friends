@@ -11,6 +11,8 @@ export type MockUser = {
   username: string;
   displayName: string;
   avatarUri: string | null;
+  /** Up to 150 characters (scope A10). */
+  bio?: string;
 };
 
 export type MockComment = {
@@ -52,16 +54,16 @@ const now = Date.now();
 const ago = (ms: number) => now - ms;
 
 export const mockUsers: MockUser[] = [
-  { id: "u_maya", username: "maya", displayName: "Maya Reyes", avatarUri: avatar(1027) },
-  { id: "u_tom", username: "tom", displayName: "Tom Reyes", avatarUri: avatar(91) },
-  { id: "u_lola", username: "lola.ines", displayName: "Lola Ines", avatarUri: avatar(64) },
-  { id: "u_ben", username: "bencruz", displayName: "Ben Cruz", avatarUri: avatar(237) },
+  { id: "u_maya", username: "maya", displayName: "Maya Reyes", avatarUri: avatar(1027), bio: "Lake days and too many photos of my kids." },
+  { id: "u_tom", username: "tom", displayName: "Tom Reyes", avatarUri: avatar(91), bio: "Mostly outdoors." },
+  { id: "u_lola", username: "lola.ines", displayName: "Lola Ines", avatarUri: avatar(64), bio: "Grandma. Baker. Sunday lunch organiser." },
+  { id: "u_ben", username: "bencruz", displayName: "Ben Cruz", avatarUri: avatar(237), bio: "Bruno's person." },
   { id: "u_ana", username: "ana", displayName: "Ana Cruz", avatarUri: avatar(823) },
-  { id: "u_jules", username: "jules", displayName: "Jules Tan", avatarUri: avatar(65) },
+  { id: "u_jules", username: "jules", displayName: "Jules Tan", avatarUri: avatar(65), bio: "On the road again." },
   { id: "u_priya", username: "priya", displayName: "Priya Nair", avatarUri: avatar(836) },
-  { id: "u_theo", username: "theo", displayName: "Theo Park", avatarUri: avatar(338) },
-  { id: "u_sam", username: "sam.o", displayName: "Sam Okafor", avatarUri: avatar(1025) },
-  { id: "u_nina", username: "nina", displayName: "Nina Lund", avatarUri: null },
+  { id: "u_theo", username: "theo", displayName: "Theo Reyes", avatarUri: avatar(338) },
+  { id: "u_sam", username: "sam.o", displayName: "Sam Ocampo", avatarUri: avatar(1025) },
+  { id: "u_nina", username: "nina", displayName: "Nina Lim", avatarUri: null },
 ];
 
 /** Who the signed-in user follows at first. theo, sam.o and nina are "people you may know". */
@@ -217,6 +219,59 @@ export const mockPosts: MockPost[] = [
     createdAt: ago(6 * DAY),
   },
 ];
+
+/** Older photos so Explore and profile grids look lived-in. No likes or comments. */
+const olderPhotos: [authorId: string, picsumId: number, daysAgo: number, caption?: string][] = [
+  ["u_maya", 1015, 7, "River walk."],
+  ["u_maya", 1018, 8],
+  ["u_maya", 1019, 10, "Weekend view."],
+  ["u_maya", 1024, 12],
+  ["u_lola", 1081, 9, "Jam is done."],
+  ["u_lola", 292, 13],
+  ["u_tom", 1016, 9, "Canyon."],
+  ["u_tom", 1035, 15],
+  ["u_ben", 1026, 11],
+  ["u_jules", 1040, 12],
+  ["u_jules", 1044, 14, "Last stop."],
+  ["u_priya", 312, 16],
+  ["u_sam", 1047, 8, "City nights."],
+  ["u_sam", 1031, 17],
+  ["u_theo", 1029, 18],
+  ["u_nina", 1062, 19, "Hello!"],
+];
+
+mockPosts.push(
+  ...olderPhotos.map(([authorId, picsumId, days, caption]): MockPost => ({
+    id: `p_old_${picsumId}`,
+    shortId: picsumId.toString(36).padStart(4, "0"),
+    authorId,
+    mediaType: "image",
+    mediaUri: photo(picsumId, 1080, 1080),
+    width: 1080,
+    height: 1080,
+    caption,
+    likedBy: [],
+    comments: [],
+    createdAt: ago(days * DAY),
+  })),
+);
+
+/**
+ * Who each other member follows (`ME_ID` = they follow you). Your own follows
+ * are `mockFollowing` above and change as you tap Follow.
+ */
+export const mockFollowGraph: Record<string, string[]> = {
+  u_maya: ["u_tom", "u_lola", "u_ben", "u_ana", "u_jules", "u_priya", "u_theo", "u_nina", ME_ID],
+  u_tom: ["u_maya", "u_lola", "u_ben", "u_ana", "u_jules", ME_ID],
+  u_lola: ["u_maya", "u_tom", "u_ana", "u_priya", ME_ID],
+  u_ben: ["u_maya", "u_tom", "u_ana", "u_theo"],
+  u_ana: ["u_maya", "u_ben", "u_lola", "u_jules", ME_ID],
+  u_jules: ["u_maya", "u_tom", "u_priya", "u_sam"],
+  u_priya: ["u_maya", "u_lola", "u_jules", ME_ID],
+  u_theo: ["u_maya", "u_ben", "u_sam"],
+  u_sam: ["u_maya", "u_jules", "u_theo"],
+  u_nina: ["u_maya", "u_lola", ME_ID],
+};
 
 /** Unread markers for the header heart and the Messages tab. */
 export const mockUnread = { activity: true, messages: true };

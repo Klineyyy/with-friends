@@ -87,6 +87,10 @@ function RootStack() {
         <Stack.Screen name="post/[id]" options={{ animation: "default" }} />
         <Stack.Screen name="activity" options={{ animation: "default" }} />
         <Stack.Screen name="new-post" options={{ animation: "default" }} />
+        <Stack.Screen name="user/[id]" options={{ animation: "default" }} />
+        <Stack.Screen name="follows/[id]" options={{ animation: "default" }} />
+        <Stack.Screen name="edit-profile" options={{ animation: "default" }} />
+        <Stack.Screen name="settings" options={{ animation: "default" }} />
       </Stack.Protected>
     </Stack>
   );

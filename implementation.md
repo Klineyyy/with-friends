@@ -2,7 +2,7 @@
 
 > How we build what [project-scope.md](project-scope.md) describes, in order.
 > Visuals and copy come from [design.md](design.md) and the board in [`design/`](design/).
-> Last updated: 2026-11-04
+> Last updated: 2026-11-05
 
 ## Approach
 
@@ -15,8 +15,8 @@ Every phase ends with `npx tsc --noEmit` and `npx expo lint` passing.
 ```
 src/
   app/              routes only (Expo Router). (tabs)/ = Home · Explore · Messages · Profile
-  components/ui/    design-system primitives: Text, Button, IconButton, TextField, Checkbox, Avatar, UnreadDot, Logo, Screen
-  components/       app components: TopBar, FloatingTabBar, PersonRow, EmptyState
+  components/ui/    design-system primitives: Text, Button, IconButton, TextField, SearchField, Checkbox, Avatar, UnreadDot, Logo, Screen, SegmentedControl
+  components/       app components: TopBar, FloatingTabBar, PersonRow, EmptyState, PhotoGrid, ProfileHeader, UnderlineTabs, MenuPopover
   components/post/  PostItem, MediaView, LikeButton, UploadStatusRow
   lib/              app logic: auth state, posts store + hooks, mock data, formatting, later Convex hooks
   theme/            tokens: colours (light/dark), Roboto type scale, spacing, radius
@@ -32,7 +32,7 @@ src/
 Board screens 1–3.
 
 - [x] Theme tokens (`src/theme`), Roboto via `@expo-google-fonts/roboto`; the splash screen stays up until fonts load
-- [x] Appearance choice: System / Light / Dark (`src/theme/appearance.ts`, `useAppearancePref`, `setAppearancePref`). Saved in `expo-secure-store`, read synchronously at startup. Picker is on the Profile placeholder; moves to Settings in Phase 7. Use `useScheme()` / `useColors()`, never RN `useColorScheme()` directly
+- [x] Appearance choice: System / Light / Dark (`src/theme/appearance.ts`, `useAppearancePref`, `setAppearancePref`). Saved in `expo-secure-store`, read synchronously at startup. Picker is on the temporary Settings screen (≡ on your profile); becomes an Appearance row on board 17 in Phase 7. Use `useScheme()` / `useColors()`, never RN `useColorScheme()` directly
 - [x] UI primitives: `Text`, `Button` (primary / secondary / disabled, large / compact), `TextField`, `Checkbox`, `Avatar`, `Logo` / `LogoMark` (SVG fish), `Screen`
 - [x] `sign-in` (1), `onboarding` (3). Screen 2 (Not invited) was built, then dropped with invite-only
 - [x] Route guards with `Stack.Protected` driven by an auth status
@@ -58,7 +58,7 @@ Board screens 4, 5, 6.3–6.4.
 - [x] ⋯ on your own post → Delete post (with confirm). On others' posts → Share (Report comes in Phase 7)
 - [x] **Sample data** (`src/lib/mock-data.ts`, **TEMPORARY**): the board's people (maya, tom, lola.ines, bencruz, ana, jules, priya, theo, sam.o, nina), 9 posts incl. 2 videos, likes and comments. Photos are fixed picsum.photos IDs (needs network). You follow 7 of them; theo, sam.o and nina are "people you may know"
 - [x] Store and hooks in `src/lib/posts.tsx` (`useFeed`, `usePost`, `usePostActions`, `useFollowing`, `useUploads`, `useUsers`, `useMe`…). In-memory: resets on reload. Phase 9 keeps the hook names and swaps the inside for Convex
-- [x] Explore, Messages, Profile tabs are placeholders. Profile has Sign out and, in dev builds only, "Unfollow everyone" to see the empty Home
+- [x] ~~Explore, Messages, Profile tabs are placeholders~~ Explore and Profile built in Phase 4; Messages is still a placeholder
 
 Open items for this area:
 - Feed videos don't play yet (`expo-video` is installed for posters; playback UI not built). Your own video posts get a poster made on device (Phase 3).
@@ -85,8 +85,26 @@ Open items for this area:
 - Android can kill the app while the camera is open on low-memory phones; the photo is then lost. `ImagePicker.getPendingResultAsync()` can recover it. Not handled yet.
 - Feed video playback (`expo-video` is now installed, so this is just UI work).
 
-### Phase 4 — Explore, profiles, follows (UI)
+### Phase 4 — Explore, profiles, follows (UI) ✅ done
 Screens 10a–13.
+
+- [x] `explore` (10a): "Explore", "Search people" field, 3-col grid of every post, newest first. Typing switches to 10b: "3 people" + person rows with Follow / Following. Matches username or display name, leaves you out
+- [x] `PhotoGrid`: 3 columns, 1 px gaps, square crops, edge to edge, small ▶ on video tiles; tap opens `post/[id]`. Used by Explore and both profiles
+- [x] `profile` tab (11a / 11b): username, ⊞ new post, ≡ → `settings`. `ProfileHeader`: 80 avatar, display name, @username, bio, "**18** posts **9** followers **10** following" (followers / following open 13), Edit profile. No posts → divider + "Share your first photo" + New post
+- [x] `user/[id]` (12): ← username ⋯. ⋯ opens a dropdown (`MenuPopover`): Block maya / Report maya. Follow / Following + Message side by side. No posts → "No posts yet". Your own ID redirects to the Profile tab; an unknown ID shows "This account isn't here anymore."
+- [x] `follows/[id]` (13): ← username, "10 followers" / "9 following" tabs with underline (`UnderlineTabs`), person rows. Your own row shows "You" instead of a button (as on board 9)
+- [x] Profiles open from: post author (avatar + username), every person row (Home empty state, search, follower lists). `openProfile()` in `src/lib/open-profile.ts` sends you to the Profile tab for yourself
+- [x] `edit-profile` (not on the board): name and bio (150 max, counter), Save in the top bar. **TEMPORARY**: saved in memory
+- [x] `settings` (**TEMPORARY**, until board 17 in Phase 7): Appearance picker, Sign out, dev-only "Unfollow everyone". Moved off the Profile placeholder
+- [x] Sample data: bios, a follow graph between members (`mockFollowGraph`; maya has 10 followers / 9 following like the board), 16 older square photos so grids fill. Theo, Sam and Nina renamed to the board's Theo Reyes, Sam Ocampo, Nina Lim (so "reyes" finds 3 people, as in 10b)
+- [x] Hooks in `src/lib/posts.tsx`: `useExplorePosts`, `useUserPosts`, `useFollowLists`, `useSearchPeople`, `useUpdateProfile`, `userExists`. Your follows update every count and list at once
+
+Open items for this area:
+- Block / Report in the ⋯ menu show "isn't ready yet" until Phase 7.
+- Message opens the Messages tab, not a thread, until Phase 6.
+- Profiles, follower lists and Settings open on the root stack, so the tab bar is hidden there (same as `post/[id]`). Board 12 shows the tab bar on maya's profile; keeping it needs a stack inside each tab. See decisions.
+- Edit profile can't change photo or username yet (username needs the Convex unique index, Phase 9). Edits reset on reload.
+- Tapping a grid tile opens the single-post screen, not a scrollable feed of that profile's posts.
 
 ### Phase 5 — Comments, likes, share (UI)
 Screens 7, 8a, 8b, 9, 20. `BottomSheet` component.
@@ -147,4 +165,5 @@ Still to do before it runs:
 | Roboto bundled on both platforms | design.md: Roboto everywhere | — |
 | `Stack.Protected` route guards | Each auth state unlocks exactly one set of routes; Clerk slots in without changing routes | — |
 | Board sign-in screens + Clerk `useSSO` (browser) for Google and Apple | Matches the board; works with Clerk's dev credentials. Clerk's `AuthView` was tried and removed because its layout and copy are Clerk's | Native Google sheet (`@clerk/expo-google-signin`) needs Google Cloud OAuth clients; consider before release |
+| Profiles and follower lists on the root stack, no tab bar | Same as `post/[id]`; one stack, simple back behaviour. Stacks inside each tab would keep the bar (board 12) but double every pushed route | If losing the tab bar on profiles feels wrong on the phone |
 | Onboarding state in Clerk `unsafeMetadata` | Lets onboarding work before Convex exists | Phase 9 |

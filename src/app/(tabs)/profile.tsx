@@ -1,59 +1,77 @@
+import { router } from "expo-router";
+import { Camera, Menu, SquarePlus } from "lucide-react-native";
 import { StyleSheet, View } from "react-native";
 
+import { EmptyState } from "@/components/EmptyState";
+import { useTabBarSpace } from "@/components/FloatingTabBar";
+import { PhotoGrid } from "@/components/PhotoGrid";
+import { ProfileHeader } from "@/components/ProfileHeader";
 import { TopBar } from "@/components/TopBar";
-import { Avatar, Button, SegmentedControl, Text } from "@/components/ui";
-import { useAuth } from "@/lib/auth";
-import { useFollowing, useMe } from "@/lib/posts";
-import { setAppearancePref, space, useAppearancePref, useColors, type AppearancePref } from "@/theme";
+import { Button, IconButton } from "@/components/ui";
+import { ME_ID } from "@/lib/mock-data";
+import { pickPostMedia } from "@/lib/pick-media";
+import { useMe, useUserPosts } from "@/lib/posts";
+import { space, useColors } from "@/theme";
 
-const APPEARANCE: { value: AppearancePref; label: string }[] = [
-  { value: "system", label: "System" },
-  { value: "light", label: "Light" },
-  { value: "dark", label: "Dark" },
-];
-
-/** TEMPORARY placeholder for Your profile (board 11a–11b, Phase 4). Sign out and Appearance move to Settings in Phase 7. */
+/** Board 11a (your profile) and 11b (no posts yet). */
 export default function Profile() {
   const colors = useColors();
   const me = useMe();
-  const { signOut } = useAuth();
-  const { clearAll } = useFollowing();
-  const appearance = useAppearancePref();
+  const posts = useUserPosts(ME_ID);
+  const bottomSpace = useTabBarSpace();
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
-      <TopBar title={me.username} />
-      <View style={styles.body}>
-        <Avatar uri={me.avatarUri} size={80} accessibilityLabel="Your photo" />
-        <Text variant="username">{me.displayName || me.username}</Text>
-        <Text tone="secondary">Your profile comes in Phase 4.</Text>
-        <View style={styles.appearance}>
-          <Text variant="username">Appearance</Text>
-          <SegmentedControl
-            accessibilityLabel="Appearance"
-            options={APPEARANCE}
-            value={appearance}
-            onChange={setAppearancePref}
+      <TopBar
+        title={me.username}
+        trailing={
+          <>
+            <IconButton icon={SquarePlus} accessibilityLabel="New post" onPress={pickPostMedia} />
+            <IconButton icon={Menu} accessibilityLabel="Settings" onPress={() => router.push("/settings")} />
+          </>
+        }
+      />
+      <PhotoGrid
+        posts={posts}
+        contentContainerStyle={{ paddingBottom: bottomSpace }}
+        ListHeaderComponent={
+          <ProfileHeader
+            user={me}
+            actions={
+              <Button
+                label="Edit profile"
+                variant="secondary"
+                style={styles.fill}
+                onPress={() => router.push("/edit-profile")}
+              />
+            }
           />
-        </View>
-        <View style={styles.buttons}>
-          {__DEV__ ? (
-            <Button
-              label="Unfollow everyone (test empty Home)"
-              variant="secondary"
-              onPress={clearAll}
+        }
+        ListEmptyComponent={
+          <View style={[styles.empty, { borderTopColor: colors.divider }]}>
+            <EmptyState
+              icon={Camera}
+              title="Share your first photo"
+              body="Your photos and videos show up here for your circle."
+              action={
+                <Button label="New post" size="compact" style={styles.newPost} onPress={pickPostMedia} />
+              }
             />
-          ) : null}
-          <Button label="Sign out" variant="secondary" onPress={signOut} />
-        </View>
-      </View>
+          </View>
+        }
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  body: { paddingHorizontal: space.screenEdge, gap: space.sm, alignItems: "flex-start" },
-  appearance: { alignSelf: "stretch", gap: space.sm, marginTop: space.lg },
-  buttons: { alignSelf: "stretch", gap: 12, marginTop: space.lg },
+  fill: { flex: 1 },
+  empty: {
+    borderTopWidth: StyleSheet.hairlineWidth * 2,
+    paddingHorizontal: space.screenEdge,
+    paddingTop: space.xl,
+  },
+  // Board 11b: a bigger button than the compact pill, like "Go to Explore" on Home.
+  newPost: { height: 44, borderRadius: 8, paddingHorizontal: 20 },
 });

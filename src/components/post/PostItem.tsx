@@ -5,6 +5,7 @@ import { Alert, Pressable, Share, StyleSheet, View } from "react-native";
 import { Avatar, IconButton, Text } from "@/components/ui";
 import { timeAgo } from "@/lib/format";
 import { ME_ID } from "@/lib/mock-data";
+import { openProfile } from "@/lib/open-profile";
 import { usePostActions, useUsers, type Post } from "@/lib/posts";
 import { space } from "@/theme";
 
@@ -51,10 +52,17 @@ export function PostItem({ post, hideCommentsLink }: Props) {
   return (
     <View style={styles.post}>
       <View style={styles.header}>
-        <Avatar uri={author.avatarUri} size={32} accessibilityLabel={author.username} />
-        <Text variant="username" numberOfLines={1} style={styles.shrink}>
-          {author.username}
-        </Text>
+        <Pressable
+          accessibilityRole="link"
+          accessibilityLabel={author.username}
+          onPress={() => openProfile(author.id)}
+          style={({ pressed }) => [styles.author, pressed && styles.pressed]}
+        >
+          <Avatar uri={author.avatarUri} size={32} />
+          <Text variant="username" numberOfLines={1} style={styles.shrink}>
+            {author.username}
+          </Text>
+        </Pressable>
         <Text variant="meta" tone="secondary" style={styles.grow}>
           {timeAgo(post.createdAt)}
         </Text>
@@ -125,6 +133,8 @@ const styles = StyleSheet.create({
     paddingRight: space.screenEdge - 10,
     height: 52,
   },
+  author: { flexDirection: "row", alignItems: "center", gap: 10, flexShrink: 1 },
+  pressed: { opacity: 0.6 },
   shrink: { flexShrink: 1 },
   grow: { flex: 1 },
   actions: { flexDirection: "row", alignItems: "center", paddingHorizontal: space.screenEdge - 10 },

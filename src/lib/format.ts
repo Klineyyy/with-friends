@@ -38,3 +38,11 @@ export const POST_LIMITS = {
   videoMaxMs: 30_000,
   videoMaxBytes: 50 * 1024 * 1024,
 } as const;
+
+/** Profile limits: bio from scope A10; display name is our own cap. */
+export const PROFILE_LIMITS = { bioLength: 150, displayNameLength: 50 } as const;
+
+/** "1 post", "18 posts". */
+export function plural(count: number, one: string, many = `${one}s`): string {
+  return `${count} ${count === 1 ? one : many}`;
+}
