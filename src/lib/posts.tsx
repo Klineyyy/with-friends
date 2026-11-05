@@ -24,6 +24,9 @@ export type User = MockUser;
 export type Post = MockPost;
 export type Comment = MockComment;
 
+/** Comment length limit (scope A10). */
+export const COMMENT_MAX_LENGTH = 500;
+
 /** What the composer hands over when you tap Share. */
 export type PostDraft = {
   mediaType: "image" | "video";
@@ -61,6 +64,8 @@ type Action =
   | { type: "toggleLike"; postId: string; liked: boolean }
   | { type: "toggleFollow"; userId: string; following: boolean }
   | { type: "deletePost"; postId: string }
+  | { type: "addComment"; postId: string; comment: Comment }
+  | { type: "deleteComment"; postId: string; commentId: string }
   | { type: "uploadStart"; upload: Upload }
   | { type: "uploadProgress"; id: string; progress: number }
   | { type: "uploadFail"; id: string }
@@ -95,6 +100,26 @@ function reducer(state: State, action: Action): State {
       };
     case "deletePost":
       return { ...state, posts: state.posts.filter((p) => p.id !== action.postId) };
+    case "addComment":
+      return {
+        ...state,
+        posts: state.posts.map((p) =>
+          p.id === action.postId ? { ...p, comments: [...p.comments, action.comment] } : p,
+        ),
+      };
+    case "deleteComment":
+      return {
+        ...state,
+        posts: state.posts.map((p) =>
+          p.id === action.postId
+            ? {
+                ...p,
+                // Only your own comment can go.
+                comments: p.comments.filter((c) => c.id !== action.commentId || c.authorId !== ME_ID),
+              }
+            : p,
+        ),
+      };
     case "uploadStart":
       return {
         ...state,
@@ -303,6 +328,16 @@ export function usePostActions() {
   return {
     setLiked: (postId: string, liked: boolean) => dispatch({ type: "toggleLike", postId, liked }),
     deletePost: (postId: string) => dispatch({ type: "deletePost", postId }),
+    /** TEMPORARY in memory; a Convex mutation (optimistic) in Phase 9. Oldest first, so it lands at the end. */
+    addComment: (postId: string, body: string) => {
+      const text = body.trim().slice(0, COMMENT_MAX_LENGTH);
+      if (!text) return;
+      const id = `c_${Date.now().toString(36)}`;
+      dispatch({ type: "addComment", postId, comment: { id, authorId: ME_ID, body: text, createdAt: Date.now() } });
+    },
+    /** Only your own comments (scope: delete own comments). */
+    deleteComment: (postId: string, commentId: string) =>
+      dispatch({ type: "deleteComment", postId, commentId }),
   };
 }
 

@@ -65,7 +65,7 @@ Board screens 4, 5, 6.3–6.4.
 Open items for this area:
 - Feed videos don't play yet (`expo-video` is installed for posters; playback UI not built). Your own video posts get a poster made on device (Phase 3).
 - Share button uses the system share sheet with `withfriends.app/p/{shortId}` until the in-app share sheet (8a, Phase 5).
-- Comment icon and "View all N comments" open `post/[id]`; the comments sheet (7) replaces that in Phase 5. "Liked by…" isn't tappable yet (9, Phase 5).
+- Comment icon and "View all N comments" open `post/[id]` (the comment icon also focuses the comment field, via `?comment=1`); the comments sheet (7) replaces that in Phase 5. "Liked by…" isn't tappable yet (9, Phase 5).
 - Pull to refresh only shows the spinner (nothing to refetch with mock data).
 
 ### Phase 3 — Posting (UI) ✅ done (needs a dev-build rebuild for compression and posters)
@@ -110,6 +110,9 @@ Open items for this area:
 
 ### Phase 5 — Comments, likes, share (UI)
 Screens 7, 8a, 8b, 9, 20. `BottomSheet` component (built in Phase 7 for the report sheet; reuse it). Give comments a ⋯ / Report in the comments sheet, replacing the long-press on `post/[id]`.
+
+- [x] **Commenting on `post/[id]`** (2026-11-05, ahead of the sheet): board 7's bottom bar (your 32 avatar, "Add a comment…" (500 max, scope A10, grows to ~5 lines), **Post** greyed until there's text). New comments go at the end and the list scrolls to them. Your own comments show a "Delete" text action (asks first). The comment icon on the post screen focuses the field. `addComment` / `deleteComment` in `usePostActions()`; **TEMPORARY** in memory, no Activity entry or push yet
+- [ ] Comments sheet (7) over the feed: move the bar and rows from `post/[id]` into the sheet
 
 ### Phase 6 — Messages and Activity (UI) ✅ done
 Screens 14a–16b.

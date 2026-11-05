@@ -1,6 +1,15 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { Image as ImageIcon } from "lucide-react-native";
-import { Alert, FlatList, Pressable, StyleSheet, View } from "react-native";
+import { useRef, useState, type ComponentRef, type RefObject } from "react";
+import {
+  Alert,
+  FlatList,
+  KeyboardAvoidingView,
+  Pressable,
+  StyleSheet,
+  TextInput,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { EmptyState } from "@/components/EmptyState";
@@ -9,18 +18,28 @@ import { TopBar } from "@/components/TopBar";
 import { Avatar, Button, Text } from "@/components/ui";
 import { timeAgo } from "@/lib/format";
 import { ME_ID } from "@/lib/mock-data";
-import { usePost, useUsers, useVisibleComments, type Comment, type Post } from "@/lib/posts";
+import {
+  COMMENT_MAX_LENGTH,
+  useMe,
+  usePost,
+  usePostActions,
+  useUsers,
+  useVisibleComments,
+  type Comment,
+  type Post,
+} from "@/lib/posts";
 import { useReport } from "@/lib/safety";
-import { space, useColors } from "@/theme";
+import { space, typeScale, useColors } from "@/theme";
 
 /**
  * One post with its comments (opened from "View all N comments", Activity or a link).
  * Not on the board; built from the feed item. Deleted → board 20.
- * Adding and deleting comments comes with the comments sheet (board 7, Phase 5).
+ * Comment bar and "Delete" on your own comments follow board 7 (comments sheet).
+ * `?comment=1` (the comment icon) focuses the field on open.
  * Long-press someone else's comment to report it (until the sheet gives comments a menu).
  */
 export default function PostScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, comment } = useLocalSearchParams<{ id: string; comment?: string }>();
   const post = usePost(id);
   const colors = useColors();
 
@@ -48,33 +67,125 @@ export default function PostScreen() {
     );
   }
 
-  return <PostWithComments post={post} />;
+  return <PostWithComments post={post} focusComment={comment === "1"} />;
 }
 
-function PostWithComments({ post }: { post: Post }) {
+function PostWithComments({ post, focusComment }: { post: Post; focusComment: boolean }) {
   const colors = useColors();
-  const insets = useSafeAreaInsets();
   const comments = useVisibleComments(post);
+  const { addComment } = usePostActions();
+  const list = useRef<FlatList<Comment>>(null);
+  const input = useRef<ComponentRef<typeof TextInput> | null>(null);
+  const justPosted = useRef(false);
+
+  function postComment(body: string) {
+    addComment(post.id, body);
+    justPosted.current = true;
+  }
+
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <TopBar back title="Post" />
-      <FlatList
-        data={comments}
-        keyExtractor={(c) => c.id}
-        ListHeaderComponent={<PostItem post={post} hideCommentsLink />}
-        renderItem={({ item }) => <CommentRow comment={item} />}
-        ListHeaderComponentStyle={[styles.postDivider, { borderBottomColor: colors.divider }]}
-        contentContainerStyle={{ paddingBottom: insets.bottom + space.lg }}
-      />
+      <KeyboardAvoidingView behavior="padding" style={styles.root}>
+        <FlatList
+          ref={list}
+          data={comments}
+          keyExtractor={(c) => c.id}
+          ListHeaderComponent={
+            <PostItem post={post} hideCommentsLink onCommentPress={() => input.current?.focus()} />
+          }
+          renderItem={({ item }) => <CommentRow postId={post.id} comment={item} />}
+          ListHeaderComponentStyle={[styles.postDivider, { borderBottomColor: colors.divider }]}
+          contentContainerStyle={styles.listContent}
+          keyboardDismissMode="interactive"
+          keyboardShouldPersistTaps="handled"
+          onContentSizeChange={() => {
+            // Show the comment you just posted (it's added at the end).
+            if (!justPosted.current) return;
+            justPosted.current = false;
+            list.current?.scrollToEnd({ animated: true });
+          }}
+        />
+        <CommentBar inputRef={input} autoFocus={focusComment} onPost={postComment} />
+      </KeyboardAvoidingView>
     </View>
   );
 }
 
-function CommentRow({ comment }: { comment: Comment }) {
+/** Board 7 bottom bar: your avatar, "Add a comment…", Post. */
+function CommentBar({
+  inputRef,
+  autoFocus,
+  onPost,
+}: {
+  inputRef: RefObject<ComponentRef<typeof TextInput> | null>;
+  autoFocus: boolean;
+  onPost: (body: string) => void;
+}) {
+  const colors = useColors();
+  const insets = useSafeAreaInsets();
+  const me = useMe();
+  const [text, setText] = useState("");
+  const canPost = text.trim().length > 0;
+
+  function submit() {
+    if (!canPost) return;
+    onPost(text);
+    setText("");
+  }
+
+  return (
+    <View
+      style={[
+        styles.bar,
+        { borderTopColor: colors.divider, paddingBottom: Math.max(insets.bottom, space.sm) },
+      ]}
+    >
+      <View style={styles.barAvatar}>
+        <Avatar uri={me.avatarUri} size={32} />
+      </View>
+      <TextInput
+        ref={inputRef}
+        value={text}
+        onChangeText={setText}
+        autoFocus={autoFocus}
+        placeholder="Add a comment…"
+        accessibilityLabel="Add a comment"
+        placeholderTextColor={colors.textSecondary}
+        cursorColor={colors.text}
+        selectionColor={colors.textSecondary}
+        maxLength={COMMENT_MAX_LENGTH}
+        multiline
+        style={[typeScale.body, styles.input, { backgroundColor: colors.surface, color: colors.text }]}
+      />
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Post comment"
+        accessibilityState={{ disabled: !canPost }}
+        disabled={!canPost}
+        onPress={submit}
+        hitSlop={8}
+        style={({ pressed }) => [styles.postButton, pressed && styles.pressed]}
+      >
+        <Text style={[typeScale.button, { color: canPost ? colors.text : colors.textSecondary }]}>Post</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+function CommentRow({ postId, comment }: { postId: string; comment: Comment }) {
   const userById = useUsers();
   const report = useReport();
+  const { deleteComment } = usePostActions();
   const author = userById(comment.authorId);
   const mine = comment.authorId === ME_ID;
+
+  function confirmDelete() {
+    Alert.alert("Delete comment?", undefined, [
+      { text: "Cancel", style: "cancel" },
+      { text: "Delete", style: "destructive", onPress: () => deleteComment(postId, comment.id) },
+    ]);
+  }
 
   function more() {
     Alert.alert(`Comment by ${author.username}`, undefined, [
@@ -100,6 +211,19 @@ function CommentRow({ comment }: { comment: Comment }) {
         </Text>
         <Text>{comment.body}</Text>
       </View>
+      {mine ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Delete comment"
+          onPress={confirmDelete}
+          hitSlop={8}
+          style={({ pressed }) => pressed && styles.pressed}
+        >
+          <Text variant="meta" tone="secondary">
+            Delete
+          </Text>
+        </Pressable>
+      ) : null}
     </Pressable>
   );
 }
@@ -111,4 +235,26 @@ const styles = StyleSheet.create({
   postDivider: { borderBottomWidth: StyleSheet.hairlineWidth, marginBottom: space.sm },
   comment: { flexDirection: "row", gap: 12, paddingHorizontal: space.screenEdge, paddingVertical: space.sm },
   commentText: { flex: 1, gap: 2 },
+  listContent: { paddingBottom: space.lg },
+  pressed: { opacity: 0.6 },
+  bar: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: 10,
+    paddingTop: space.sm,
+    paddingHorizontal: space.screenEdge,
+    borderTopWidth: StyleSheet.hairlineWidth * 2,
+  },
+  barAvatar: { marginBottom: 6 },
+  input: {
+    flex: 1,
+    minHeight: 40,
+    maxHeight: 120,
+    marginBottom: 2,
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 10,
+  },
+  postButton: { height: 40, justifyContent: "center", marginBottom: 2 },
 });

@@ -17,10 +17,12 @@ type Props = {
   post: Post;
   /** Hide "View all N comments" (on the post screen, where comments are listed). */
   hideCommentsLink?: boolean;
+  /** Comment icon. Default: open the post screen with the comment field focused. */
+  onCommentPress?: () => void;
 };
 
 /** Board 4: header, media, actions, likes line, caption, comments link. */
-export function PostItem({ post, hideCommentsLink }: Props) {
+export function PostItem({ post, hideCommentsLink, onCommentPress }: Props) {
   const userById = useUsers();
   const { setLiked, deletePost } = usePostActions();
   const report = useReport();
@@ -32,6 +34,8 @@ export function PostItem({ post, hideCommentsLink }: Props) {
   const commentCount = comments.length;
 
   const openPost = () => router.push({ pathname: "/post/[id]", params: { id: post.id } });
+  const comment =
+    onCommentPress ?? (() => router.push({ pathname: "/post/[id]", params: { id: post.id, comment: "1" } }));
 
   async function share() {
     // TEMPORARY: system share sheet until the in-app share sheet (board 8a, Phase 5).
@@ -81,16 +85,14 @@ export function PostItem({ post, hideCommentsLink }: Props) {
 
       <View style={styles.actions}>
         <LikeButton liked={liked} onChange={(next) => setLiked(post.id, next)} />
-        <IconButton icon={MessageCircle} accessibilityLabel="Comments" onPress={openPost} />
+        <IconButton icon={MessageCircle} accessibilityLabel="Comment" onPress={comment} />
         <IconButton icon={Share2} accessibilityLabel="Share" onPress={share} />
       </View>
 
       <View style={styles.text}>
         <LikesLine post={post} />
         {post.caption ? (
-          <Text>
-            <Text variant="username">{author.username}</Text> {post.caption}
-          </Text>
+          <Text>{post.caption}</Text>
         ) : null}
         {commentCount > 0 && !hideCommentsLink ? (
           <Pressable onPress={openPost} accessibilityRole="link" hitSlop={6}>

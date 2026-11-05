@@ -109,7 +109,7 @@ Numbers match the board.
 ### Home and posts
 | # | Screen | Key details |
 |---|---|---|
-| 4 | Home feed | Header: logo + "With Friends", heart (Activity, fern dot when unread), ⊞ new post. Post: 32 avatar, username, time, ⋯; media; heart / comment / share icons; "Liked by **maya** and **3 others**"; "**tom** caption"; "View all 4 comments" (secondary). |
+| 4 | Home feed | Header: logo + "With Friends", heart (Activity, fern dot when unread), ⊞ new post. Post: 32 avatar, username, time, ⋯; media; heart / comment / share icons; "Liked by **maya** and **3 others**"; caption (board shows "**tom** caption"; the username was dropped from the caption on 2026-11-05, since it's already in the post header); "View all 4 comments" (secondary). |
 | 5 | Home, empty | "Follow people to see their posts here" / "Everyone in your circle is on Explore." Go to Explore button. "People you may know" list with Follow buttons. |
 | 7 | Comments | Bottom sheet over dimmed feed, grab handle, "Comments" title. Rows: avatar, username, time, text; own comment shows "Delete" text action. Bottom bar: own avatar, "Add a comment…" field, Post. |
 | 8a | Share sheet | In-app bottom sheet: post thumbnail + caption + link `withfriends.app/p/8kq2`. "Send in With Friends" row of 4 avatars + "More people…". "Share with apps": Copy, Nearby, Messages, Email. |
