@@ -1,17 +1,18 @@
 import { useState } from "react";
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from "react-native";
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { TopBar } from "@/components/TopBar";
 import { Avatar, Button, Text, TextField } from "@/components/ui";
 import { PROFILE_LIMITS } from "@/lib/format";
 import { goBack } from "@/lib/go-back";
+import { errorMessage } from "@/lib/convex";
 import { useMe, useUpdateProfile } from "@/lib/posts";
 import { space, useColors } from "@/theme";
 
 /**
  * Edit profile (not on the board; built from the design system).
- * Name and bio. TEMPORARY: saved in memory until Convex owns the profile (Phase 9).
+ * Name and bio, saved to Convex.
  * Changing photo and username comes later.
  */
 export default function EditProfile() {
@@ -25,7 +26,9 @@ export default function EditProfile() {
   const changed = displayName.trim() !== me.displayName || bio.trim() !== (me.bio ?? "");
 
   function save() {
-    updateProfile({ displayName: displayName.trim(), bio: bio.trim() });
+    updateProfile({ displayName: displayName.trim(), bio: bio.trim() }).catch((error) =>
+      Alert.alert("Couldn't save", errorMessage(error, "Check your connection and try again.")),
+    );
     goBack();
   }
 

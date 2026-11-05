@@ -12,10 +12,9 @@ import { Avatar, Button, IconButton, Text } from "@/components/ui";
 import { useBlockActions } from "@/lib/blocks";
 import { threadTimestamp } from "@/lib/format";
 import { MESSAGE_MAX_LENGTH, useThread, type Message } from "@/lib/inbox";
-import { ME_ID } from "@/lib/mock-data";
 import { openProfile } from "@/lib/open-profile";
 import { compressImage } from "@/lib/prepare-media";
-import { useUsers, type User } from "@/lib/posts";
+import { useMe, useUsers, type User } from "@/lib/posts";
 import { useReport } from "@/lib/safety";
 import { space, typeScale, useColors } from "@/theme";
 
@@ -32,7 +31,8 @@ export default function Thread() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useColors();
   const userById = useUsers();
-  const { messages, theirLastReadAt, send, markRead } = useThread(id);
+  const me = useMe();
+  const { messages, theirLastReadAt, blocked: blockedEitherWay, send, markRead } = useThread(id);
   const [menuOpen, setMenuOpen] = useState(false);
   const { isBlocked, confirmBlock, confirmUnblock } = useBlockActions();
   const report = useReport();
@@ -44,9 +44,12 @@ export default function Thread() {
   }, [markRead, lastMessageAt]);
 
   // Newest first, for the inverted list (it starts at the bottom, like every chat).
-  const rows = useMemo(() => buildRows(messages, theirLastReadAt).reverse(), [messages, theirLastReadAt]);
+  const rows = useMemo(
+    () => buildRows(messages, theirLastReadAt, me.id).reverse(),
+    [messages, theirLastReadAt, me.id],
+  );
 
-  if (id === ME_ID) return <Redirect href="/messages" />;
+  if (id === me.id) return <Redirect href="/messages" />;
 
   const user = userById(id);
   const blocked = isBlocked(id);
@@ -81,12 +84,20 @@ export default function Thread() {
           inverted
           data={rows}
           keyExtractor={(r) => r.key}
-          renderItem={({ item }) => <ThreadRow row={item} />}
+          renderItem={({ item }) => <ThreadRow row={item} myId={me.id} />}
           contentContainerStyle={styles.list}
           keyboardDismissMode="interactive"
           keyboardShouldPersistTaps="handled"
         />
-        {blocked ? <BlockedFooter user={user} onUnblock={() => confirmUnblock(user)} /> : <Composer onSend={send} />}
+        {blocked ? (
+          <BlockedFooter user={user} onUnblock={() => confirmUnblock(user)} />
+        ) : blockedEitherWay ? (
+          <Text variant="meta" tone="secondary" style={styles.cantMessage}>
+            You can&apos;t message this account.
+          </Text>
+        ) : (
+          <Composer onSend={send} />
+        )}
       </KeyboardAvoidingView>
       <MenuPopover
         visible={menuOpen}
@@ -104,7 +115,7 @@ export default function Thread() {
 }
 
 /** Oldest first: time separators, messages, and "Seen" under your last message once they've read it. */
-function buildRows(messages: Message[], theirLastReadAt: number): Row[] {
+function buildRows(messages: Message[], theirLastReadAt: number, myId: string): Row[] {
   const rows: Row[] = [];
   let prev: Message | undefined;
   for (const message of messages) {
@@ -119,13 +130,13 @@ function buildRows(messages: Message[], theirLastReadAt: number): Row[] {
     });
     prev = message;
   }
-  if (prev && prev.senderId === ME_ID && theirLastReadAt >= prev.createdAt) {
+  if (prev && prev.senderId === myId && theirLastReadAt >= prev.createdAt) {
     rows.push({ type: "seen", key: "seen" });
   }
   return rows;
 }
 
-function ThreadRow({ row }: { row: Row }) {
+function ThreadRow({ row, myId }: { row: Row; myId: string }) {
   if (row.type === "time") {
     return (
       <Text variant="meta" tone="secondary" style={styles.time}>
@@ -142,7 +153,7 @@ function ThreadRow({ row }: { row: Row }) {
   }
   return (
     <View style={{ marginTop: row.newSender ? 12 : 4 }}>
-      <MessageBubble message={row.message} mine={row.message.senderId === ME_ID} />
+      <MessageBubble message={row.message} mine={row.message.senderId === myId} />
     </View>
   );
 }
@@ -219,6 +230,7 @@ function Composer({ onSend }: { onSend: ReturnType<typeof useThread>["send"] }) 
 }
 
 const styles = StyleSheet.create({
+  cantMessage: { textAlign: "center", paddingHorizontal: space.screenEdge, paddingTop: space.md, paddingBottom: space.xl },
   root: { flex: 1 },
   flex: { flex: 1 },
   person: { flexDirection: "row", alignItems: "center", gap: 10 },

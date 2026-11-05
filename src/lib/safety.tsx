@@ -1,16 +1,17 @@
+import { useMutation, useQuery } from "convex/react";
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 
 import { ReportSheet } from "@/components/ReportSheet";
+import { api } from "@/convex/_generated/api";
 
-import type { Report, ReportTarget } from "./report";
+import type { ReportTarget } from "./report";
 
 /**
  * Reports and notification settings (board 18, 19).
  *
- * TEMPORARY: reports and notification settings are kept in memory and reset on
- * reload. Phase 9 sends reports to the Convex `reports` table (reviewed in the
- * Convex dashboard, scope A5); Phase 10 stores the notification settings with
- * the user so push respects them.
+ * Reports go to the Convex `reports` table, reviewed by hand in the Convex
+ * dashboard (scope A5). Notification settings are stored on the user
+ * (`users.notificationPrefs`); push that respects them is Phase 10.
  */
 
 /** Board 18: which pushes your phone gets. Activity always shows everything. */
@@ -21,8 +22,6 @@ const DEFAULT_PREFS: NotificationPrefs = { likes: true, comments: true, follows:
 type Store = {
   /** Opens the report sheet (board 19). */
   report: (target: ReportTarget) => void;
-  notificationPrefs: NotificationPrefs;
-  setNotificationPref: (key: keyof NotificationPrefs, on: boolean) => void;
 };
 
 const SafetyContext = createContext<Store | null>(null);
@@ -32,23 +31,14 @@ export function SafetyProvider({ children }: { children: ReactNode }) {
   const [target, setTarget] = useState<ReportTarget | null>(null);
   // Bumped on every open so the sheet starts fresh (no reason picked, not sent).
   const [openCount, setOpenCount] = useState(0);
-  const [, setReports] = useState<Report[]>([]);
-  const [notificationPrefs, setPrefs] = useState(DEFAULT_PREFS);
+  const createReport = useMutation(api.reports.create);
 
   const report = useCallback((t: ReportTarget) => {
     setTarget(t);
     setOpenCount((n) => n + 1);
   }, []);
 
-  const setNotificationPref = useCallback(
-    (key: keyof NotificationPrefs, on: boolean) => setPrefs((p) => ({ ...p, [key]: on })),
-    [],
-  );
-
-  const store = useMemo(
-    () => ({ report, notificationPrefs, setNotificationPref }),
-    [report, notificationPrefs, setNotificationPref],
-  );
+  const store = useMemo(() => ({ report }), [report]);
 
   return (
     <SafetyContext.Provider value={store}>
@@ -59,8 +49,9 @@ export function SafetyProvider({ children }: { children: ReactNode }) {
         onClose={() => setTarget(null)}
         onSend={(reason) => {
           if (!target) return;
-          // TEMPORARY: kept in memory. Phase 9: Convex `createReport` mutation.
-          setReports((all) => [...all, { ...target, reason, createdAt: Date.now() }]);
+          createReport({ targetType: target.type, targetId: target.id, targetUserId: target.userId, reason }).catch(
+            (error) => console.warn("Report failed", error),
+          );
         }}
       />
     </SafetyContext.Provider>
@@ -79,6 +70,15 @@ export function useReport() {
 }
 
 export function useNotificationPrefs() {
-  const { notificationPrefs, setNotificationPref } = useStore();
-  return { prefs: notificationPrefs, setPref: setNotificationPref };
+  const me = useQuery(api.users.me);
+  const setPref = useMutation(api.users.setNotificationPref).withOptimisticUpdate((store, { key, on }) => {
+    const current = store.getQuery(api.users.me, {});
+    if (current) store.setQuery(api.users.me, {}, { ...current, notificationPrefs: { ...current.notificationPrefs, [key]: on } });
+  });
+  return {
+    prefs: me?.notificationPrefs ?? DEFAULT_PREFS,
+    setPref: (key: keyof NotificationPrefs, on: boolean) => {
+      setPref({ key, on }).catch((error) => console.warn(error));
+    },
+  };
 }

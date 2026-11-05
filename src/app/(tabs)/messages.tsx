@@ -26,7 +26,7 @@ export default function Messages() {
           <IconButton icon={Pencil} accessibilityLabel="New message" onPress={() => router.push("/new-message")} />
         }
       />
-      {conversations.length ? (
+      {conversations === undefined ? null : conversations.length ? (
         <FlatList
           data={conversations}
           keyExtractor={(c) => c.user.id}

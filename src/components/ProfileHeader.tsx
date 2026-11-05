@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 
 import { Avatar, Text } from "@/components/ui";
-import { useFollowLists, useUserPosts, type User } from "@/lib/posts";
+import { useProfile, type User } from "@/lib/posts";
 import { space } from "@/theme";
 
 type Props = {
@@ -18,8 +18,7 @@ type Props = {
  * Followers and following open board 13.
  */
 export function ProfileHeader({ user, actions }: Props) {
-  const posts = useUserPosts(user.id);
-  const { followers, following } = useFollowLists(user.id);
+  const profile = useProfile(user.id);
 
   const openFollows = (tab: "followers" | "following") =>
     router.push({ pathname: "/follows/[id]", params: { id: user.id, tab } });
@@ -35,9 +34,9 @@ export function ProfileHeader({ user, actions }: Props) {
       </View>
       {user.bio ? <Text>{user.bio}</Text> : null}
       <View style={styles.counts}>
-        <Count value={posts.length} one="post" />
-        <Count value={followers.length} one="follower" onPress={() => openFollows("followers")} />
-        <Count value={following.length} one="following" many="following" onPress={() => openFollows("following")} />
+        <Count value={profile?.postCount ?? 0} one="post" />
+        <Count value={profile?.followerCount ?? 0} one="follower" onPress={() => openFollows("followers")} />
+        <Count value={profile?.followingCount ?? 0} one="following" many="following" onPress={() => openFollows("following")} />
       </View>
       <View style={styles.actions}>{actions}</View>
     </View>

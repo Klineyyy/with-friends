@@ -9,7 +9,6 @@ import { TopBar } from "@/components/TopBar";
 import { Text } from "@/components/ui";
 import { activitySection } from "@/lib/format";
 import { useActivity, type ActivityItem } from "@/lib/inbox";
-import { usePosts, useUsers, type Post, type User } from "@/lib/posts";
 import { space, useColors } from "@/theme";
 
 type Section = { title: string; data: ActivityEntry[] };
@@ -19,24 +18,21 @@ export default function Activity() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { items, markAllRead } = useActivity();
-  const userById = useUsers();
-  const postById = usePosts();
 
-  // Keep the dots that were unread when you opened the screen, then clear the Home heart.
-  const [unreadOnOpen] = useState(() => new Set(items.filter((a) => !a.read).map((a) => a.id)));
+  // Keep the dots that were unread when the list first loaded, then clear the Home heart.
+  const [unreadOnOpen, setUnreadOnOpen] = useState<Set<string> | null>(null);
+  if (items && !unreadOnOpen) setUnreadOnOpen(new Set(items.filter((a) => !a.read).map((a) => a.id)));
+  const loaded = unreadOnOpen !== null;
   useEffect(() => {
-    markAllRead();
-  }, [markAllRead]);
+    if (loaded) markAllRead();
+  }, [loaded, markAllRead]);
 
-  const sections = useMemo(
-    () => buildSections(items, unreadOnOpen, userById, postById),
-    [items, unreadOnOpen, userById, postById],
-  );
+  const sections = useMemo(() => buildSections(items ?? [], unreadOnOpen ?? new Set()), [items, unreadOnOpen]);
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <TopBar back title="Activity" />
-      {sections.length ? (
+      {items === undefined ? null : sections.length ? (
         <SectionList
           sections={sections}
           keyExtractor={(e) => e.key}
@@ -65,8 +61,6 @@ export default function Activity() {
 function buildSections(
   items: ActivityItem[],
   unreadOnOpen: Set<string>,
-  userById: (id: string) => User,
-  postById: (id: string | undefined) => Post | null,
 ): Section[] {
   const sections: Section[] = [];
   const likeGroups = new Map<string, ActivityEntry>();
@@ -78,18 +72,18 @@ function buildSections(
       sections.push(section);
     }
     const unread = unreadOnOpen.has(item.id);
-    const groupKey = item.type === "like" ? `${title}:${item.postId}` : undefined;
+    const groupKey = item.type === "like" && item.post ? `${title}:${item.post.id}` : undefined;
     const group = groupKey ? likeGroups.get(groupKey) : undefined;
     if (group) {
-      if (!group.actors.some((u) => u.id === item.actorId)) group.actors.push(userById(item.actorId));
+      if (!group.actors.some((u) => u.id === item.actorId)) group.actors.push(item.actor);
       group.unread ||= unread;
       continue;
     }
     const entry: ActivityEntry = {
       key: item.id,
       type: item.type,
-      actors: [userById(item.actorId)],
-      post: item.postId ? postById(item.postId) : null,
+      actors: [item.actor],
+      post: item.post,
       body: item.body,
       createdAt: item.createdAt,
       unread,

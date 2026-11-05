@@ -15,8 +15,8 @@ const ROWS: { key: keyof NotificationPrefs; label: string; description: string }
 ];
 
 /**
- * Board 18. TEMPORARY: the choices are kept in memory; push arrives in Phase 10
- * and these become per-type preferences stored with the user.
+ * Board 18. Saved on your user in Convex (`users.notificationPrefs`); push that
+ * respects them arrives in Phase 10.
  */
 export default function NotificationSettings() {
   const colors = useColors();

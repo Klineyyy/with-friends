@@ -4,9 +4,8 @@ import { Alert, Pressable, Share, StyleSheet, View } from "react-native";
 
 import { Avatar, IconButton, Text } from "@/components/ui";
 import { timeAgo } from "@/lib/format";
-import { ME_ID } from "@/lib/mock-data";
 import { openProfile } from "@/lib/open-profile";
-import { usePostActions, useUsers, useVisibleComments, type Post } from "@/lib/posts";
+import { useMe, usePostActions, useUsers, type Post } from "@/lib/posts";
 import { useReport } from "@/lib/safety";
 import { space } from "@/theme";
 
@@ -24,14 +23,14 @@ type Props = {
 /** Board 4: header, media, actions, likes line, caption, comments link. */
 export function PostItem({ post, hideCommentsLink, onCommentPress }: Props) {
   const userById = useUsers();
+  const me = useMe();
   const { setLiked, deletePost } = usePostActions();
   const report = useReport();
-  const comments = useVisibleComments(post);
 
-  const author = userById(post.authorId);
-  const liked = post.likedBy.includes(ME_ID);
-  const isMine = post.authorId === ME_ID;
-  const commentCount = comments.length;
+  const author = post.author ?? userById(post.authorId);
+  const liked = post.likedByMe;
+  const isMine = post.authorId === me.id;
+  const commentCount = post.commentCount;
 
   const openPost = () => router.push({ pathname: "/post/[id]", params: { id: post.id } });
   const comment =
@@ -39,7 +38,8 @@ export function PostItem({ post, hideCommentsLink, onCommentPress }: Props) {
 
   async function share() {
     // TEMPORARY: system share sheet until the in-app share sheet (board 8a, Phase 5).
-    await Share.share({ message: `https://withfriends.app/p/${post.shortId}` });
+    // Custom-scheme link until the https site exists (scope A12).
+    await Share.share({ message: `withfriends://post/${post.id}` });
   }
 
   function more() {
@@ -106,14 +106,12 @@ export function PostItem({ post, hideCommentsLink, onCommentPress }: Props) {
   );
 }
 
-/** "Liked by maya and 3 others". You come first when you've liked it. */
+/** "Liked by maya and 3 others". Names someone else when they can; "you" if only you. */
 function LikesLine({ post }: { post: Post }) {
-  const userById = useUsers();
-  const count = post.likedBy.length;
+  const count = post.likeCount;
   if (count === 0) return null;
 
-  const first = post.likedBy[0];
-  const firstName = first === ME_ID ? "you" : userById(first).username;
+  const firstName = post.firstLikerUsername ?? "someone";
   const others = count - 1;
 
   return (

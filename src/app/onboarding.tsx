@@ -5,8 +5,12 @@ import { useEffect, useState } from "react";
 import { KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, View } from "react-native";
 
 import { Avatar, Button, Checkbox, Screen, Text, TextField } from "@/components/ui";
+import { useQuery } from "convex/react";
+
+import { api } from "@/convex/_generated/api";
 import { useAuth } from "@/lib/auth";
-import { checkUsernameAvailable, normalizeUsername, usernameFormatError, USERNAME_MAX } from "@/lib/username";
+import { errorMessage } from "@/lib/convex";
+import { normalizeUsername, usernameFormatError, USERNAME_MAX } from "@/lib/username";
 import { useColors } from "@/theme";
 
 type Availability =
@@ -23,39 +27,32 @@ export default function Onboarding() {
 
   // Defaults to the Google/Apple photo Clerk already has.
   const [avatarUri, setAvatarUri] = useState(account?.avatarUri ?? null);
-  const [newAvatarDataUrl, setNewAvatarDataUrl] = useState<string | null>(null);
+  const [newAvatarUri, setNewAvatarUri] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [agreed, setAgreed] = useState(false);
-  // Last server answer, tagged with the username it was for.
-  const [checked, setChecked] = useState<{ username: string; available: boolean } | null>(null);
+  // Ask the server once typing pauses for 300 ms (unique `username` index).
+  const [debounced, setDebounced] = useState("");
 
   const username = normalizeUsername(input);
   const formatError = username === "" ? null : usernameFormatError(username);
   const needsCheck = username !== "" && formatError === null;
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(username), 300);
+    return () => clearTimeout(timer);
+  }, [username]);
+  const available = useQuery(api.users.usernameAvailable, needsCheck && debounced === username ? { username } : "skip");
 
   const availability: Availability =
     username === ""
       ? { state: "idle" }
       : formatError
         ? { state: "invalid", message: formatError }
-        : checked?.username === username
-          ? { state: checked.available ? "available" : "taken" }
+        : available !== undefined && debounced === username
+          ? { state: available ? "available" : "taken" }
           : { state: "checking" };
-
-  useEffect(() => {
-    if (!needsCheck) return;
-    let cancelled = false;
-    const timer = setTimeout(async () => {
-      const available = await checkUsernameAvailable(username);
-      if (!cancelled) setChecked({ username, available });
-    }, 300);
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [username, needsCheck]);
 
   async function pickPhoto() {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -63,24 +60,21 @@ export default function Onboarding() {
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
-      base64: true,
     });
     if (result.canceled) return;
     const asset = result.assets[0];
     setAvatarUri(asset.uri);
-    if (asset.base64) {
-      setNewAvatarDataUrl(`data:${asset.mimeType ?? "image/jpeg"};base64,${asset.base64}`);
-    }
+    setNewAvatarUri(asset.uri);
   }
 
   async function submit() {
     setSaving(true);
     setSaveError(null);
     try {
-      await completeOnboarding({ username, newAvatarDataUrl });
+      await completeOnboarding({ username, newAvatarUri });
       // On success the route guard moves to Home; this screen unmounts.
-    } catch {
-      setSaveError("Couldn't save. Check your connection and try again.");
+    } catch (error) {
+      setSaveError(errorMessage(error, "Couldn't save. Check your connection and try again."));
       setSaving(false);
     }
   }

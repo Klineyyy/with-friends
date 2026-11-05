@@ -1,28 +1,28 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, type ReactNode } from "react";
+import { useMutation, useQuery } from "convex/react";
+import type { OptimisticLocalStore } from "convex/browser";
+import type { FunctionReturnType } from "convex/server";
+import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 
-import { useAuth } from "./auth";
-import {
-  ME_ID,
-  mockFollowGraph,
-  mockFollowing,
-  mockPosts,
-  mockUsers,
-  type MockComment,
-  type MockPost,
-  type MockUser,
-} from "./mock-data";
+import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
+
+import { optimisticNow } from "./convex";
+import { setMyId } from "./open-profile";
+import { uploadFile } from "./upload";
 
 /**
- * Posts, people, follows and uploads for the UI phases.
+ * Posts, people, follows, blocks and uploads, backed by Convex (Phase 9).
  *
- * TEMPORARY: everything here is in-memory sample data from `mock-data.ts` and
- * resets on reload. In Phase 9 these hooks keep their shape but read from
- * Convex queries and call Convex mutations (see implementation.md).
+ * The provider keeps four small live queries that most screens need
+ * synchronously: you (`users.me`), the member directory (`users.directory`,
+ * ~10 people, scope §1), and your follow and block IDs (`social.myGraph`).
+ * Lists (feed, explore, profiles, comments) are their own queries. Likes,
+ * follows and comments update optimistically (scope §6).
  */
 
-export type User = MockUser;
-export type Post = MockPost;
-export type Comment = MockComment;
+export type User = FunctionReturnType<typeof api.users.directory>[number];
+export type Post = NonNullable<FunctionReturnType<typeof api.posts.get>>;
+export type Comment = FunctionReturnType<typeof api.social.comments>[number];
 
 /** Comment length limit (scope A10). */
 export const COMMENT_MAX_LENGTH = 500;
@@ -50,203 +50,84 @@ export type Upload = {
 /** Your editable profile fields (board: Edit profile). */
 export type ProfileEdits = { displayName: string; bio: string };
 
-type State = {
-  posts: Post[];
-  following: string[];
-  /** TEMPORARY: your edits, in memory until Convex owns the profile. `null` = not edited yet. */
-  profile: ProfileEdits | null;
-  uploads: Upload[];
-  /** People you blocked (scope §5 `blocks`). Hidden both ways. */
-  blocked: string[];
-};
-
-type Action =
-  | { type: "toggleLike"; postId: string; liked: boolean }
-  | { type: "toggleFollow"; userId: string; following: boolean }
-  | { type: "deletePost"; postId: string }
-  | { type: "addComment"; postId: string; comment: Comment }
-  | { type: "deleteComment"; postId: string; commentId: string }
-  | { type: "uploadStart"; upload: Upload }
-  | { type: "uploadProgress"; id: string; progress: number }
-  | { type: "uploadFail"; id: string }
-  | { type: "uploadDone"; id: string; post: Post }
-  | { type: "clearFollowing" }
-  | { type: "updateProfile"; profile: ProfileEdits }
-  | { type: "block"; userId: string }
-  | { type: "unblock"; userId: string };
-
-function reducer(state: State, action: Action): State {
-  switch (action.type) {
-    case "toggleLike":
-      return {
-        ...state,
-        posts: state.posts.map((p) =>
-          p.id !== action.postId
-            ? p
-            : {
-                ...p,
-                likedBy: action.liked
-                  ? [ME_ID, ...p.likedBy.filter((id) => id !== ME_ID)]
-                  : p.likedBy.filter((id) => id !== ME_ID),
-              },
-        ),
-      };
-    case "toggleFollow":
-      return {
-        ...state,
-        following: action.following
-          ? [...state.following.filter((id) => id !== action.userId), action.userId]
-          : state.following.filter((id) => id !== action.userId),
-      };
-    case "deletePost":
-      return { ...state, posts: state.posts.filter((p) => p.id !== action.postId) };
-    case "addComment":
-      return {
-        ...state,
-        posts: state.posts.map((p) =>
-          p.id === action.postId ? { ...p, comments: [...p.comments, action.comment] } : p,
-        ),
-      };
-    case "deleteComment":
-      return {
-        ...state,
-        posts: state.posts.map((p) =>
-          p.id === action.postId
-            ? {
-                ...p,
-                // Only your own comment can go.
-                comments: p.comments.filter((c) => c.id !== action.commentId || c.authorId !== ME_ID),
-              }
-            : p,
-        ),
-      };
-    case "uploadStart":
-      return {
-        ...state,
-        uploads: [action.upload, ...state.uploads.filter((u) => u.id !== action.upload.id)],
-      };
-    case "uploadProgress":
-      return {
-        ...state,
-        uploads: state.uploads.map((u) =>
-          u.id === action.id ? { ...u, progress: action.progress } : u,
-        ),
-      };
-    case "uploadFail":
-      return {
-        ...state,
-        uploads: state.uploads.map((u) => (u.id === action.id ? { ...u, status: "failed" } : u)),
-      };
-    case "uploadDone":
-      return {
-        ...state,
-        uploads: state.uploads.filter((u) => u.id !== action.id),
-        posts: [action.post, ...state.posts],
-      };
-    case "clearFollowing":
-      return { ...state, following: [] };
-    case "updateProfile":
-      return { ...state, profile: action.profile };
-    case "block":
-      // Blocking also ends the follow (Phase 9: both directions, in the mutation).
-      return {
-        ...state,
-        blocked: [...state.blocked.filter((id) => id !== action.userId), action.userId],
-        following: state.following.filter((id) => id !== action.userId),
-      };
-    case "unblock":
-      return { ...state, blocked: state.blocked.filter((id) => id !== action.userId) };
-  }
-}
-
-function draftToPost({ id, draft }: Upload): Post {
-  return {
-    id: `p_${id}`,
-    shortId: id.slice(-4),
-    authorId: ME_ID,
-    mediaType: draft.mediaType,
-    mediaUri: draft.uri,
-    // Made on device in the composer; missing on a dev build without expo-video.
-    posterUri: draft.posterUri,
-    width: draft.width,
-    height: draft.height,
-    durationMs: draft.durationMs,
-    caption: draft.caption?.trim() || undefined,
-    likedBy: [],
-    comments: [],
-    createdAt: Date.now(),
-  };
-}
-
 type Store = {
-  state: State;
-  dispatch: (action: Action) => void;
-  me: User;
+  me: User | null;
+  directory: Map<string, User>;
+  following: Set<string>;
+  blocked: Set<string>;
+  ready: boolean;
+  uploads: Upload[];
   startUpload: (upload: Upload) => void;
 };
 
 const PostsContext = createContext<Store | null>(null);
 
-export function PostsProvider({ children }: { children: ReactNode }) {
-  const { account } = useAuth();
-  const [state, dispatch] = useReducer(reducer, undefined, () => ({
-    posts: mockPosts,
-    following: mockFollowing,
-    profile: null,
-    uploads: [],
-    blocked: [],
-  }));
+const DELETED: Omit<User, "id"> = { username: "deleted", displayName: "Deleted user", avatarUri: null };
 
-  const me: User = useMemo(
-    () => ({
-      id: ME_ID,
-      username: account?.username ?? "you",
-      displayName: state.profile?.displayName ?? account?.displayName ?? "",
-      avatarUri: account?.avatarUri ?? null,
-      bio: state.profile?.bio,
-    }),
-    [account?.username, account?.displayName, account?.avatarUri, state.profile],
+export function PostsProvider({ children }: { children: ReactNode }) {
+  const meDoc = useQuery(api.users.me);
+  const signedIn = !!meDoc?.onboarded;
+  const directoryList = useQuery(api.users.directory, signedIn ? {} : "skip");
+  const graph = useQuery(api.social.myGraph, signedIn ? {} : "skip");
+  const [uploads, setUploads] = useState<Upload[]>([]);
+  const generateUploadUrl = useMutation(api.posts.generateUploadUrl);
+  const createPost = useMutation(api.posts.create);
+
+  const me: User | null = useMemo(
+    () =>
+      meDoc
+        ? { id: meDoc.id, username: meDoc.username, displayName: meDoc.displayName, avatarUri: meDoc.avatarUri, bio: meDoc.bio }
+        : null,
+    [meDoc],
+  );
+  setMyId(me?.id ?? null);
+
+  const directory = useMemo(() => {
+    const map = new Map<string, User>((directoryList ?? []).map((u) => [u.id, u]));
+    if (me) map.set(me.id, me);
+    return map;
+  }, [directoryList, me]);
+  const following = useMemo(() => new Set<string>(graph?.following ?? []), [graph]);
+  const blocked = useMemo(() => new Set<string>(graph?.blocked ?? []), [graph]);
+
+  // Uploads live here, not in a screen, so an upload keeps going after the composer closes.
+  const startUpload = useCallback(
+    (upload: Upload) => {
+      const patch = (fields: Partial<Upload>) =>
+        setUploads((all) => all.map((u) => (u.id === upload.id ? { ...u, ...fields } : u)));
+      setUploads((all) => [{ ...upload, progress: 0, status: "uploading" }, ...all.filter((u) => u.id !== upload.id)]);
+      (async () => {
+        const { draft } = upload;
+        const mediaStorageId = (await uploadFile(await generateUploadUrl(), draft.uri, (f) =>
+          patch({ progress: f * 0.9 }),
+        )) as Id<"_storage">;
+        const posterStorageId = draft.posterUri
+          ? ((await uploadFile(await generateUploadUrl(), draft.posterUri)) as Id<"_storage">)
+          : undefined;
+        patch({ progress: 0.95 });
+        await createPost({
+          mediaType: draft.mediaType,
+          mediaStorageId,
+          posterStorageId,
+          width: draft.width,
+          height: draft.height,
+          durationMs: draft.durationMs,
+          caption: draft.caption,
+        });
+        setUploads((all) => all.filter((u) => u.id !== upload.id));
+      })().catch((error) => {
+        console.warn("Upload failed", error);
+        patch({ status: "failed" });
+      });
+    },
+    [generateUploadUrl, createPost],
   );
 
-  // Upload timers live here, not in a screen, so an upload keeps going after
-  // the composer closes.
-  const timers = useRef(new Map<string, ReturnType<typeof setInterval>>());
-  useEffect(() => {
-    const running = timers.current;
-    return () => running.forEach((t) => clearInterval(t));
-  }, []);
-
-  /**
-   * TEMPORARY: fakes an upload over ~2.5 s. About 1 in 5 attempts fails
-   * partway, so the "Upload failed. Tap to retry." row can be seen. Phase 9
-   * replaces this with a Convex upload URL + createPost mutation.
-   */
-  const startUpload = useCallback((upload: Upload) => {
-    const running = timers.current;
-    clearInterval(running.get(upload.id));
-    dispatch({ type: "uploadStart", upload: { ...upload, progress: 0, status: "uploading" } });
-    const willFail = Math.random() < 0.2;
-    let progress = 0;
-    const timer = setInterval(() => {
-      progress = Math.min(1, progress + 0.04);
-      if (willFail && progress >= 0.6) {
-        clearInterval(timer);
-        running.delete(upload.id);
-        dispatch({ type: "uploadFail", id: upload.id });
-        return;
-      }
-      if (progress >= 1) {
-        clearInterval(timer);
-        running.delete(upload.id);
-        dispatch({ type: "uploadDone", id: upload.id, post: draftToPost(upload) });
-        return;
-      }
-      dispatch({ type: "uploadProgress", id: upload.id, progress });
-    }, 100);
-    running.set(upload.id, timer);
-  }, []);
-
-  const store = useMemo(() => ({ state, dispatch, me, startUpload }), [state, me, startUpload]);
+  const ready = !signedIn || (directoryList !== undefined && graph !== undefined);
+  const store = useMemo(
+    () => ({ me, directory, following, blocked, ready, uploads, startUpload }),
+    [me, directory, following, blocked, ready, uploads, startUpload],
+  );
   return <PostsContext.Provider value={store}>{children}</PostsContext.Provider>;
 }
 
@@ -256,186 +137,221 @@ function useStore(): Store {
   return store;
 }
 
-/** The signed-in user as a `User`. */
+/** False while the directory and your follows are still loading (the splash stays up). */
+export function usePostsReady(): boolean {
+  return useStore().ready;
+}
+
+/** The signed-in user as a `User`. Only use on signed-in screens. */
 export function useMe(): User {
-  return useStore().me;
-}
-
-/** Look up anyone (including you) by ID. */
-export function useUsers() {
   const { me } = useStore();
-  return useMemo(() => {
-    const byId = new Map<string, User>(mockUsers.map((u) => [u.id, u]));
-    byId.set(ME_ID, me);
-    return (id: string): User =>
-      byId.get(id) ?? { id, username: "deleted", displayName: "Deleted user", avatarUri: null };
-  }, [me]);
+  return me ?? { id: "" as Id<"users">, ...DELETED };
 }
 
-/** Home feed: your posts and posts from people you follow, newest first. */
-export function useFeed() {
-  const { state } = useStore();
-  return useMemo(() => {
-    const visible = new Set([ME_ID, ...state.following.filter((id) => !state.blocked.includes(id))]);
-    return state.posts
-      .filter((p) => visible.has(p.authorId))
-      .sort((a, b) => b.createdAt - a.createdAt);
-  }, [state.posts, state.following, state.blocked]);
+/** Look up anyone (including you) by ID. Unknown IDs = deleted account (or someone who blocked you). */
+export function useUsers() {
+  const { directory } = useStore();
+  return useCallback((id: string): User => directory.get(id) ?? { id: id as Id<"users">, ...DELETED }, [directory]);
 }
 
-/** One post, or `null` if it doesn't exist (deleted). */
-export function usePost(id: string | undefined): Post | null {
-  const { state } = useStore();
-  return state.posts.find((p) => p.id === id) ?? null;
+/** Whether a user ID belongs to a member (or you). */
+export function useUserExists() {
+  const { directory } = useStore();
+  return useCallback((id: string) => directory.has(id), [directory]);
 }
 
-/** Look up posts by ID; `null` = deleted. For lists that show many posts (Activity). */
-export function usePosts() {
-  const { state } = useStore();
-  return useMemo(() => {
-    const byId = new Map(state.posts.map((p) => [p.id, p]));
-    return (id: string | undefined): Post | null => (id ? (byId.get(id) ?? null) : null);
-  }, [state.posts]);
+// ─── Optimistic helpers ──────────────────────────────────────────────────────
+
+const POST_LISTS = [api.posts.feed, api.posts.explore, api.posts.byUser] as const;
+
+/** Applies `change` to a post wherever it's cached: feed, explore, profile grids, single post. */
+function patchPostEverywhere(store: OptimisticLocalStore, postId: string, change: (p: Post) => Post | null) {
+  for (const ref of POST_LISTS) {
+    for (const { args, value } of store.getAllQueries(ref)) {
+      if (!value) continue;
+      const next = value.flatMap((p) => (p.id === postId ? (change(p) ?? []) : [p]));
+      store.setQuery(ref, args, next);
+    }
+  }
+  for (const { args, value } of store.getAllQueries(api.posts.get)) {
+    if (value && value.id === postId) store.setQuery(api.posts.get, args, change(value));
+  }
+}
+
+function patchGraph(store: OptimisticLocalStore, change: (g: { following: Id<"users">[]; blocked: Id<"users">[] }) => typeof g) {
+  const g = store.getQuery(api.social.myGraph, {});
+  if (g) store.setQuery(api.social.myGraph, {}, change(g));
+}
+
+// ─── Posts ───────────────────────────────────────────────────────────────────
+
+/** Home feed: your posts and posts from people you follow, newest first. `undefined` while loading. */
+export function useFeed(): Post[] | undefined {
+  return useQuery(api.posts.feed);
+}
+
+/** One post: `undefined` while loading, `null` if deleted. */
+export function usePost(id: string | undefined): Post | null | undefined {
+  const post = useQuery(api.posts.get, id ? { postId: id } : "skip");
+  return id ? post : null;
 }
 
 export function useFollowing() {
-  const { state, dispatch } = useStore();
-  const following = state.following;
+  const { following } = useStore();
+  const setFollowing = useMutation(api.social.setFollowing).withOptimisticUpdate((store, { userId, following: on }) =>
+    patchGraph(store, (g) => ({
+      ...g,
+      following: on ? [...g.following.filter((id) => id !== userId), userId] : g.following.filter((id) => id !== userId),
+    })),
+  );
+  const unfollowAll = useMutation(api.social.unfollowAll).withOptimisticUpdate((store) =>
+    patchGraph(store, (g) => ({ ...g, following: [] })),
+  );
   return {
-    count: following.length,
-    isFollowing: (userId: string) => following.includes(userId),
-    follow: (userId: string) => dispatch({ type: "toggleFollow", userId, following: true }),
-    unfollow: (userId: string) => dispatch({ type: "toggleFollow", userId, following: false }),
+    count: following.size,
+    isFollowing: (userId: string) => following.has(userId),
+    follow: (userId: string) => void setFollowing({ userId: userId as Id<"users">, following: true }).catch(warn),
+    unfollow: (userId: string) => void setFollowing({ userId: userId as Id<"users">, following: false }).catch(warn),
     /** Dev only: empties the follow list so the empty Home (board 5) shows. */
-    clearAll: () => dispatch({ type: "clearFollowing" }),
+    clearAll: () => void unfollowAll().catch(warn),
   };
 }
 
 /** Members you don't follow yet, for "People you may know". */
 export function useSuggestedPeople(limit = 5): User[] {
-  const { state } = useStore();
-  return useMemo(
-    () =>
-      mockUsers
-        .filter((u) => !state.following.includes(u.id) && !state.blocked.includes(u.id))
-        .slice(0, limit),
-    [state.following, state.blocked, limit],
-  );
+  const { following } = useStore();
+  const people = useQuery(api.users.suggested, { limit: limit + 5 });
+  // Filter by the live follow set too, so a just-tapped Follow stays put until the query catches up.
+  return useMemo(() => (people ?? []).filter((u) => !following.has(u.id)).slice(0, limit), [people, following, limit]);
 }
 
 export function usePostActions() {
-  const { dispatch } = useStore();
+  const me = useMe();
+  const setLikedMutation = useMutation(api.social.setLiked).withOptimisticUpdate((store, { postId, liked }) =>
+    patchPostEverywhere(store, postId, (p) =>
+      p.likedByMe === liked
+        ? p
+        : {
+            ...p,
+            likedByMe: liked,
+            likeCount: Math.max(0, p.likeCount + (liked ? 1 : -1)),
+            firstLikerUsername: p.firstLikerUsername ?? (liked ? "you" : null),
+          },
+    ),
+  );
+  const removePost = useMutation(api.posts.remove).withOptimisticUpdate((store, { postId }) =>
+    patchPostEverywhere(store, postId, () => null),
+  );
+  const addCommentMutation = useMutation(api.social.addComment).withOptimisticUpdate((store, { postId, body }) => {
+    const existing = store.getQuery(api.social.comments, { postId });
+    if (existing) {
+      const now = optimisticNow();
+      store.setQuery(api.social.comments, { postId }, [
+        ...existing,
+        { id: `optimistic_${now}` as Id<"comments">, authorId: me.id as Id<"users">, author: me as Comment["author"], body: body.trim(), createdAt: now },
+      ]);
+    }
+    patchPostEverywhere(store, postId, (p) => ({ ...p, commentCount: p.commentCount + 1 }));
+  });
+  const deleteCommentMutation = useMutation(api.social.deleteComment);
+
   return {
-    setLiked: (postId: string, liked: boolean) => dispatch({ type: "toggleLike", postId, liked }),
-    deletePost: (postId: string) => dispatch({ type: "deletePost", postId }),
-    /** TEMPORARY in memory; a Convex mutation (optimistic) in Phase 9. Oldest first, so it lands at the end. */
+    setLiked: (postId: string, liked: boolean) =>
+      void setLikedMutation({ postId: postId as Id<"posts">, liked }).catch(warn),
+    deletePost: (postId: string) => void removePost({ postId: postId as Id<"posts"> }).catch(warn),
     addComment: (postId: string, body: string) => {
       const text = body.trim().slice(0, COMMENT_MAX_LENGTH);
       if (!text) return;
-      const id = `c_${Date.now().toString(36)}`;
-      dispatch({ type: "addComment", postId, comment: { id, authorId: ME_ID, body: text, createdAt: Date.now() } });
+      void addCommentMutation({ postId: postId as Id<"posts">, body: text }).catch(warn);
     },
-    /** Only your own comments (scope: delete own comments). */
-    deleteComment: (postId: string, commentId: string) =>
-      dispatch({ type: "deleteComment", postId, commentId }),
+    /** Only your own comments (the server checks too). */
+    deleteComment: (postId: string, commentId: string) => {
+      void deleteCommentMutation
+        .withOptimisticUpdate((store) => {
+          const existing = store.getQuery(api.social.comments, { postId });
+          if (existing) store.setQuery(api.social.comments, { postId }, existing.filter((c) => c.id !== commentId));
+          patchPostEverywhere(store, postId, (p) => ({ ...p, commentCount: Math.max(0, p.commentCount - 1) }));
+        })({ commentId: commentId as Id<"comments"> })
+        .catch(warn);
+    },
   };
 }
 
 /** Share a new post and watch its upload. */
 export function useUploads() {
-  const { state, startUpload } = useStore();
+  const { uploads, startUpload } = useStore();
   return {
-    uploads: state.uploads,
+    uploads,
     share: (draft: PostDraft) =>
       startUpload({ id: Date.now().toString(36), draft, progress: 0, status: "uploading" }),
     retry: (upload: Upload) => startUpload(upload),
   };
 }
 
-const newestFirst = (a: Post, b: Post) => b.createdAt - a.createdAt;
-
 /** Explore grid (board 10a): recent posts from everyone, newest first. */
-export function useExplorePosts(): Post[] {
-  const { state } = useStore();
-  return useMemo(
-    () => state.posts.filter((p) => !state.blocked.includes(p.authorId)).sort(newestFirst),
-    [state.posts, state.blocked],
-  );
+export function useExplorePosts(): Post[] | undefined {
+  return useQuery(api.posts.explore);
 }
 
 /** One person's posts, newest first (profile grid, board 11a / 12). */
-export function useUserPosts(userId: string): Post[] {
-  const { state } = useStore();
-  return useMemo(
-    () => state.posts.filter((p) => p.authorId === userId).sort(newestFirst),
-    [state.posts, userId],
-  );
-}
-
-/** Whether a user ID belongs to a member (or you). Unknown IDs = deleted account. */
-export function userExists(userId: string): boolean {
-  return userId === ME_ID || mockUsers.some((u) => u.id === userId);
+export function useUserPosts(userId: string): Post[] | undefined {
+  return useQuery(api.posts.byUser, userId ? { userId } : "skip");
 }
 
 /**
- * Followers and following for anyone (board 13). Your own follows come from the
- * store, so tapping Follow anywhere updates every list and count.
+ * Someone's profile with stored counts (board 11a / 12). `undefined` while
+ * loading, `null` for a deleted account or someone who blocked you.
  */
-export function useFollowLists(userId: string): { followers: User[]; following: User[] } {
-  const { state } = useStore();
-  const userById = useUsers();
-  return useMemo(() => {
-    const followerIds = mockUsers
-      .filter((u) => mockFollowGraph[u.id]?.includes(userId))
-      .map((u) => u.id);
-    if (userId !== ME_ID && state.following.includes(userId)) followerIds.unshift(ME_ID);
-    const followingIds = userId === ME_ID ? state.following : (mockFollowGraph[userId] ?? []);
-    const shown = (id: string) => !state.blocked.includes(id);
-    return {
-      followers: followerIds.filter(shown).map(userById),
-      following: followingIds.filter(shown).map(userById),
-    };
-  }, [state.following, state.blocked, userId, userById]);
+export function useProfile(userId: string) {
+  return useQuery(api.users.profile, userId ? { userId } : "skip");
+}
+
+/** Followers and following for anyone (board 13). */
+export function useFollowLists(userId: string): { followers: User[]; following: User[] } | undefined {
+  return useQuery(api.social.followLists, userId ? { userId } : "skip");
 }
 
 /** People search (board 10b): username or display name contains the query. You're left out. */
 export function useSearchPeople(query: string): User[] {
-  const { state } = useStore();
-  return useMemo(() => {
-    const q = query.trim().toLowerCase().replace(/^@/, "");
-    if (!q) return [];
-    return mockUsers.filter(
-      (u) =>
-        !state.blocked.includes(u.id) &&
-        (u.username.includes(q) || u.displayName.toLowerCase().includes(q)),
-    );
-  }, [query, state.blocked]);
+  const q = query.trim();
+  return useQuery(api.users.search, q ? { query: q } : "skip") ?? [];
 }
 
-/** Edit profile: display name and bio. TEMPORARY in memory; a Convex mutation in Phase 9. */
+/** A post's comments, oldest first, without people hidden by a block. */
+export function useComments(postId: string): Comment[] | undefined {
+  return useQuery(api.social.comments, { postId });
+}
+
+/** Edit profile: display name and bio. Resolves when saved; throws a ConvexError with a message. */
 export function useUpdateProfile() {
-  const { dispatch } = useStore();
-  return (profile: ProfileEdits) => dispatch({ type: "updateProfile", profile });
+  const update = useMutation(api.users.updateProfile);
+  return (profile: ProfileEdits) => update(profile);
 }
 
 /**
  * Blocking (scope §5, §8): someone you block is hidden from your feed, Explore,
- * search, comments, messages and activity, and can't message you. TEMPORARY in
- * memory; Convex `blocks` + permission checks in Phase 9.
+ * search, comments, messages and activity, and can't message you. The server
+ * filters every list; `isBlocked` is for the profile and thread screens.
  */
 export function useBlocks() {
-  const { state, dispatch } = useStore();
-  const blocked = state.blocked;
+  const { blocked } = useStore();
+  const blockMutation = useMutation(api.social.block).withOptimisticUpdate((store, { userId }) =>
+    patchGraph(store, (g) => ({
+      following: g.following.filter((id) => id !== userId),
+      blocked: [...g.blocked.filter((id) => id !== userId), userId],
+    })),
+  );
+  const unblockMutation = useMutation(api.social.unblock).withOptimisticUpdate((store, { userId }) =>
+    patchGraph(store, (g) => ({ ...g, blocked: g.blocked.filter((id) => id !== userId) })),
+  );
   return {
-    blockedIds: blocked,
-    isBlocked: useCallback((userId: string) => blocked.includes(userId), [blocked]),
-    block: (userId: string) => dispatch({ type: "block", userId }),
-    unblock: (userId: string) => dispatch({ type: "unblock", userId }),
+    blockedIds: [...blocked],
+    isBlocked: useCallback((userId: string) => blocked.has(userId), [blocked]),
+    block: (userId: string) => void blockMutation({ userId: userId as Id<"users"> }).catch(warn),
+    unblock: (userId: string) => void unblockMutation({ userId: userId as Id<"users"> }).catch(warn),
   };
 }
 
-/** A post's comments without those from people you blocked. */
-export function useVisibleComments(post: Post): Comment[] {
-  const { isBlocked } = useBlocks();
-  return useMemo(() => post.comments.filter((c) => !isBlocked(c.authorId)), [post.comments, isBlocked]);
+function warn(error: unknown) {
+  console.warn(error);
 }

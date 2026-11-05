@@ -5,7 +5,8 @@ import { Pressable, StyleSheet } from "react-native";
 import { Avatar, Button, Text, UnreadDot } from "@/components/ui";
 import { timeAgo } from "@/lib/format";
 import { openProfile } from "@/lib/open-profile";
-import { useFollowing, type Post, type User } from "@/lib/posts";
+import type { ActivityItem } from "@/lib/inbox";
+import { useFollowing, type User } from "@/lib/posts";
 import { space, useColors } from "@/theme";
 
 /** One Activity row. Likes on the same post in the same section are grouped. */
@@ -14,7 +15,7 @@ export type ActivityEntry = {
   type: "like" | "comment" | "follow";
   /** Most recent first. */
   actors: User[];
-  post: Post | null;
+  post: ActivityItem["post"];
   body?: string;
   createdAt: number;
   unread: boolean;
@@ -38,7 +39,7 @@ export function ActivityRow({ entry }: { entry: ActivityEntry }) {
     else router.push({ pathname: "/post/[id]", params: { id: entry.post.id } });
   };
 
-  const thumb = entry.post ? (entry.post.mediaType === "video" ? entry.post.posterUri : entry.post.mediaUri) : undefined;
+  const thumb = entry.post?.thumbUri ?? undefined;
   const following = isFollowing(actor.id);
 
   return (

@@ -1,24 +1,22 @@
 import { useAuth as useClerkAuth, useClerk, useUser } from "@clerk/expo";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
+import { useEffect, useRef } from "react";
+
+import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
+
+import { uploadFile } from "./upload";
 
 /**
- * App-level auth state, derived from Clerk.
+ * App-level auth state: Clerk owns the session, Convex owns the profile.
  *
- * - `loading`    Clerk is restoring the session from the token cache.
+ * - `loading`    Clerk is restoring the session, Convex is checking the token,
+ *                or the user row is being created on first sign-in.
  * - `signedOut`  Sign-in screen (sign-in.tsx).
- * - `onboarding` Signed in, but hasn't picked a username / accepted terms yet.
+ * - `onboarding` Signed in, but hasn't picked a username / accepted terms yet (`users.onboarded`).
  * - `signedIn`   Fully set up.
- *
- * TEMPORARY: onboarding data lives in Clerk `unsafeMetadata` until Convex
- * exists. In the Convex phase, `onboarded` comes from `users.onboarded` and
- * `completeOnboarding` becomes a Convex mutation (see implementation.md).
  */
 export type AuthStatus = "loading" | "signedOut" | "onboarding" | "signedIn";
-
-type OnboardingMetadata = {
-  onboarded?: boolean;
-  username?: string;
-  termsAcceptedAt?: string;
-};
 
 export type Account = {
   email: string | null;
@@ -33,54 +31,62 @@ export function useAuth() {
   const { isLoaded, isSignedIn } = useClerkAuth();
   const { user } = useUser();
   const { signOut } = useClerk();
+  const convexAuth = useConvexAuth();
+  const me = useQuery(api.users.me, convexAuth.isAuthenticated ? {} : "skip");
+  const ensure = useMutation(api.users.ensure);
+  const finishOnboarding = useMutation(api.users.completeOnboarding);
+  const generateUploadUrl = useMutation(api.posts.generateUploadUrl);
+  const deleteMe = useMutation(api.users.deleteMe);
 
-  const meta = (user?.unsafeMetadata ?? {}) as OnboardingMetadata;
+  // First sign-in: create the Convex user row (don't wait for the webhook).
+  const ensuring = useRef(false);
+  useEffect(() => {
+    if (me !== null || ensuring.current) return;
+    ensuring.current = true;
+    ensure()
+      .catch((error) => console.warn("users.ensure failed", error))
+      .finally(() => (ensuring.current = false));
+  }, [me, ensure]);
 
-  const status: AuthStatus = !isLoaded
-    ? "loading"
-    : !isSignedIn || !user
-      ? "signedOut"
-      : meta.onboarded
-        ? "signedIn"
-        : "onboarding";
+  const status: AuthStatus =
+    !isLoaded || (isSignedIn && (convexAuth.isLoading || !convexAuth.isAuthenticated || !me))
+      ? "loading"
+      : !isSignedIn || !user
+        ? "signedOut"
+        : me?.onboarded
+          ? "signedIn"
+          : "onboarding";
 
   const account: Account | null = user
     ? {
         email: user.primaryEmailAddress?.emailAddress ?? null,
-        displayName: user.fullName,
-        avatarUri: user.hasImage ? user.imageUrl : null,
-        username: meta.username ?? null,
+        displayName: me?.displayName || user.fullName,
+        avatarUri: me?.avatarUri ?? (user.hasImage ? user.imageUrl : null),
+        username: me?.username || null,
         provider: user.externalAccounts[0]?.providerTitle() ?? null,
       }
     : null;
 
   async function completeOnboarding(input: {
     username: string;
-    /** A new photo as a base64 data URL, or null to keep the current one. */
-    newAvatarDataUrl: string | null;
+    /** A newly picked photo (local URI), or null to keep the Google / Apple one. */
+    newAvatarUri: string | null;
   }) {
-    if (!user) throw new Error("Not signed in");
-    if (input.newAvatarDataUrl) {
-      await user.setProfileImage({ file: input.newAvatarDataUrl });
+    let avatarStorageId: Id<"_storage"> | undefined;
+    if (input.newAvatarUri) {
+      avatarStorageId = (await uploadFile(await generateUploadUrl(), input.newAvatarUri)) as Id<"_storage">;
     }
-    await user.updateMetadata({
-      unsafeMetadata: {
-        onboarded: true,
-        username: input.username,
-        termsAcceptedAt: new Date().toISOString(),
-      } satisfies OnboardingMetadata,
-    });
-    // Refresh so `unsafeMetadata` (and the status above) update.
-    await user.reload();
+    await finishOnboarding({ username: input.username, avatarStorageId });
   }
 
   /**
-   * Board 21. Deletes the Clerk user, which also signs you out. Phase 9: Clerk's
-   * `user.deleted` webhook runs the Convex cascade (posts, comments, likes,
-   * follows); messages stay, shown as "Deleted user" (scope §4).
+   * Board 21. Starts the Convex cascade (posts, comments, likes, follows go;
+   * messages stay as "Deleted user", scope §4), then deletes the Clerk user,
+   * which signs you out. The `user.deleted` webhook is the backstop.
    */
   async function deleteAccount() {
     if (!user) throw new Error("Not signed in");
+    await deleteMe();
     await user.delete();
   }
 

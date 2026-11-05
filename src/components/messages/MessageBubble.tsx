@@ -63,6 +63,8 @@ function PostCard({ postId, style }: { postId?: string; style: Align }) {
   const userById = useUsers();
   const frame = [styles.card, style, { borderColor: colors.divider, backgroundColor: colors.background }];
 
+  if (post === undefined) return <View style={[frame, styles.cardText]} />;
+
   if (!post) {
     return (
       <View style={[frame, styles.cardText]}>
@@ -73,7 +75,7 @@ function PostCard({ postId, style }: { postId?: string; style: Align }) {
     );
   }
 
-  const author = userById(post.authorId);
+  const author = post.author ?? userById(post.authorId);
   const source = post.mediaType === "video" ? post.posterUri : post.mediaUri;
   const height = CARD_WIDTH / clampedAspectRatio(post.width, post.height);
 

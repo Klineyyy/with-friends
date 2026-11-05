@@ -24,14 +24,14 @@ export default function Home() {
   const bottomSpace = useTabBarSpace();
   const [refreshing, setRefreshing] = useState(false);
 
-  // TEMPORARY: nothing to refetch with mock data; Convex queries are live anyway.
+  // Convex queries are live, so there's nothing to refetch; the spinner just confirms the pull.
   function refresh() {
     setRefreshing(true);
     setTimeout(() => setRefreshing(false), 600);
   }
 
   // Board 5 shows until you follow someone. Your own posts still show without follows.
-  const showEmpty = followingCount === 0 && feed.length === 0 && uploads.length === 0;
+  const showEmpty = feed !== undefined && followingCount === 0 && feed.length === 0 && uploads.length === 0;
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -53,7 +53,7 @@ export default function Home() {
         <HomeEmpty bottomSpace={bottomSpace} />
       ) : (
         <FlatList
-          data={feed}
+          data={feed ?? []}
           keyExtractor={(p) => p.id}
           renderItem={({ item }) => <PostItem post={item} />}
           ListHeaderComponent={

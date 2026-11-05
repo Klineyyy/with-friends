@@ -41,7 +41,7 @@ export default function Explore() {
         />
       ) : (
         <PhotoGrid
-          posts={posts}
+          posts={posts ?? []}
           keyboardDismissMode="on-drag"
           contentContainerStyle={{ paddingBottom: bottomSpace }}
         />

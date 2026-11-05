@@ -8,7 +8,6 @@ import { PhotoGrid } from "@/components/PhotoGrid";
 import { ProfileHeader } from "@/components/ProfileHeader";
 import { TopBar } from "@/components/TopBar";
 import { Button, IconButton } from "@/components/ui";
-import { ME_ID } from "@/lib/mock-data";
 import { pickPostMedia } from "@/lib/pick-media";
 import { useMe, useUserPosts } from "@/lib/posts";
 import { space, useColors } from "@/theme";
@@ -17,7 +16,7 @@ import { space, useColors } from "@/theme";
 export default function Profile() {
   const colors = useColors();
   const me = useMe();
-  const posts = useUserPosts(ME_ID);
+  const posts = useUserPosts(me.id);
   const bottomSpace = useTabBarSpace();
 
   return (
@@ -32,7 +31,7 @@ export default function Profile() {
         }
       />
       <PhotoGrid
-        posts={posts}
+        posts={posts ?? []}
         contentContainerStyle={{ paddingBottom: bottomSpace }}
         ListHeaderComponent={
           <ProfileHeader
@@ -48,7 +47,7 @@ export default function Profile() {
           />
         }
         ListEmptyComponent={
-          <View style={[styles.empty, { borderTopColor: colors.divider }]}>
+          posts === undefined ? undefined : <View style={[styles.empty, { borderTopColor: colors.divider }]}>
             <EmptyState
               icon={Camera}
               title="Share your first photo"

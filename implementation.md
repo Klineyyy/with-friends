@@ -2,7 +2,7 @@
 
 > How we build what [project-scope.md](project-scope.md) describes, in order.
 > Visuals and copy come from [design.md](design.md) and the board in [`design/`](design/).
-> Last updated: 2026-11-05
+> Last updated: 2026-11-05 (Phase 9)
 
 ## Approach
 
@@ -19,7 +19,8 @@ src/
   components/       app components: TopBar, FloatingTabBar, PersonRow, EmptyState, PhotoGrid, ProfileHeader, UnderlineTabs, MenuPopover, ConversationRow, ActivityRow, BottomSheet, ReportSheet, SettingsRow (+ RadioRow, SettingsDivider), DocPage
   components/post/  PostItem, MediaView, LikeButton, UploadStatusRow
   components/messages/  MessageBubble (text / photo / shared-post card)
-  lib/              app logic: auth state, posts store + hooks (incl. blocks), inbox store + hooks (messages, activity), safety (reports, notification settings), mock data, formatting, later Convex hooks
+  lib/              app logic: auth state, posts hooks (incl. blocks), inbox hooks (messages, activity), safety (reports, notification settings), uploads, formatting. All read Convex
+convex/             backend: schema, queries / mutations, account-deletion cascade, Clerk webhook (http.ts), tests
   theme/            tokens: colours (light/dark), Roboto type scale, spacing, radius
 ```
 
@@ -38,7 +39,7 @@ Board screens 1–3.
 - [x] UI primitives: `Text`, `Button` (primary / secondary / disabled, large / compact), `TextField`, `Checkbox`, `Avatar`, `Logo` / `LogoMark` (SVG fish), `Screen`
 - [x] `sign-in` (1), `onboarding` (3). Screen 2 (Not invited) was built, then dropped with invite-only
 - [x] Route guards with `Stack.Protected` driven by an auth status
-- [x] Username rules (`src/lib/username.ts`): lowercase, `[a-z0-9_.]`, 3–30 characters; live "✓ jamie is available" with a mock check of taken names
+- [x] Username rules (`src/lib/username.ts`): `[A-Za-z0-9_.]`, 3–30 characters, kept as typed ("Kline" stays "Kline"), unique ignoring case (`users.usernameKey`, changed 2026-11-05; before that usernames were lowercased); live "✓ jamie is available" with a mock check of taken names
 - [x] "Change photo" uses the system photo picker (`expo-image-picker`), square crop
 - [x] ~~`index` is a placeholder Home with Sign out~~ replaced by the tab shell in Phase 2
 
@@ -59,7 +60,7 @@ Board screens 4, 5, 6.3–6.4.
 - [x] `post/[id]`: one post with its comments (not on the board, built from the feed item). Missing post → board 20 "This post was deleted."
 - [x] ⋯ on your own post → Delete post (with confirm). On others' posts → Share (Report comes in Phase 7)
 - [x] **Sample data** (`src/lib/mock-data.ts`, **TEMPORARY**): the board's people (maya, tom, lola.ines, bencruz, ana, jules, priya, theo, sam.o, nina), 9 posts incl. 2 videos, likes and comments. Photos are fixed picsum.photos IDs (needs network). You follow 7 of them; theo, sam.o and nina are "people you may know"
-- [x] Store and hooks in `src/lib/posts.tsx` (`useFeed`, `usePost`, `usePostActions`, `useFollowing`, `useUploads`, `useUsers`, `useMe`…). In-memory: resets on reload. Phase 9 keeps the hook names and swaps the inside for Convex
+- [x] Store and hooks in `src/lib/posts.tsx` (`useFeed`, `usePost`, `usePostActions`, `useFollowing`, `useUploads`, `useUsers`, `useMe`…). ~~In-memory~~ Convex since Phase 9, same hook names
 - [x] ~~Explore, Messages, Profile tabs are placeholders~~ Explore and Profile built in Phase 4, Messages in Phase 6
 
 Open items for this area:
@@ -105,7 +106,7 @@ Open items for this area:
 - ~~Block / Report in the ⋯ menu show "isn't ready yet" until Phase 7.~~ Working since Phase 7.
 - ~~Message opens the Messages tab, not a thread, until Phase 6.~~ Opens the thread since Phase 6.
 - Profiles, follower lists and Settings open on the root stack, so the tab bar is hidden there (same as `post/[id]`). Board 12 shows the tab bar on maya's profile; keeping it needs a stack inside each tab. See decisions.
-- Edit profile can't change photo or username yet (username needs the Convex unique index, Phase 9). Edits reset on reload.
+- Edit profile can't change photo or username yet (the unique `username` index exists since Phase 9; the UI doesn't). Name and bio save to Convex.
 - Tapping a grid tile opens the single-post screen, not a scrollable feed of that profile's posts.
 
 ### Phase 5 — Comments, likes, share (UI)
@@ -130,7 +131,7 @@ Open items for this area:
 - **TEMPORARY** "Seen" is faked 2.5 s after you send. Nobody replies.
 - Tapping a photo message does nothing (no full-screen viewer on the board).
 - The thread's bottom safe-area padding stays while the keyboard is open, leaving a small gap above the keyboard on phones with a gesture bar. Same as the composer.
-- Activity rows for a post that's since been deleted show no thumbnail and open the person. Phase 9 should delete those notifications with the post.
+- ~~Activity rows for a deleted post~~ Since Phase 9, deleting a post deletes its notifications.
 - Sending a post to someone from the share sheet (8a / 8b) comes in Phase 5; the store already accepts `{ kind: "post", postId }`.
 
 ### Phase 7 — Settings and safety (UI) ✅ done
@@ -143,14 +144,14 @@ Screens 17–19, 21.
 - [x] Blocking: `useBlocks()` in `src/lib/posts.tsx`, confirm dialogs in `useBlockActions()` (`src/lib/blocks.ts`). Block from profile ⋯ or thread ⋯, or after reporting. Blocking also unfollows. A blocked person is hidden from Home, Explore, search, "People you may know", follower lists, comments (and counts), Messages, New message, Activity and the unread dots. Their profile shows "You blocked maya" + Unblock; their thread shows "You blocked maya. They can't message you." + Unblock instead of the composer
 - [x] `blocked` (not on the board): person rows with Unblock (asks first); empty state "No one blocked"
 - [x] `delete-account` (21): title, explanation, "I understand this can't be undone" checkbox, Delete account (disabled until ticked, "Deleting…") + Cancel. **Really deletes the Clerk user** (`user.delete()`), which signs you out. Needs "Allow users to delete their accounts" on in Clerk (on by default); otherwise the error shows in an alert
-- [x] `rules` and `terms` (not on the board): plain reading pages (`DocPage`). Open from Settings and from the onboarding checkbox text; guarded by "onboarding or signed in". Don't leave any route outside a `Stack.Protected`: when signed out, Expo Router redirects to the first unguarded route alphabetically, so an unguarded `rules` opened instead of `sign-in` (fixed 2026-11-05)
+- [x] `rules` and `terms` (not on the board): plain reading pages (`DocPage`). Open from Settings and from the onboarding checkbox text; guarded by "onboarding or signed in". Don't leave any route outside a `Stack.Protected`: when signed out, Expo Router redirects to the first unguarded route alphabetically, so an unguarded `rules` opened instead of `sign-in` (fixed 2026-11-05). Guards alone weren't enough either: right after Google sign-in the router could fall back to `rules` with nothing under it, and ← went to `/` (guarded) and bounced back. `RootStack` now redirects: onboarding → `/onboarding` unless a reading page sits on top of something; signed in on a reading page with nothing under it → `/`
 - [x] Primitives: `Switch` (black track + white knob / outline + grey knob, no slide animation), `Radio` (black ring + dot). `SettingsRow`, `RadioRow`, `SettingsDivider`
 
 Open items for this area:
 - **Delete account copy follows the scope, not the board** (design.md §6 conflict 3): "Messages you sent stay… shown as from 'Deleted user'". If you'd rather delete messages for everyone, change the copy in `delete-account.tsx`, the Settings row and `terms.tsx`, and the Phase 9 cascade.
-- Account deletion only removes the Clerk user until Phase 9 (Convex cascade from the `user.deleted` webhook). The web page to request deletion is Phase 10.
+- ~~Account deletion only removes the Clerk user~~ Since Phase 9 it runs the Convex cascade first. The web page to request deletion is Phase 10.
 - **Terms and privacy is a plain-language draft**, written to match the scope. Get real terms and a privacy policy before release (Play needs a privacy policy URL that matches the Data safety form). Community rules are a draft too.
-- Blocks, reports and notification settings reset on reload (in memory). Blocking someone doesn't remove their follow of you in the sample data (the follow graph is fixed); Phase 9's mutation removes both.
+- ~~Blocks, reports and notification settings reset on reload~~ Stored in Convex since Phase 9; blocking removes follows both ways.
 - A post by someone you blocked still opens from a direct link or an old Activity row; scope only asks to hide them from lists.
 - "Something else" has no free-text box (`reports` has only `reason`).
 - The sheet appears without sliding and can't be dragged down; tap outside or Back closes it.
@@ -177,11 +178,28 @@ Still to do before it runs:
 - Invite yourself in Clerk Dashboard → Users → Invitations, sign in, finish onboarding, restart the app and check the session survives.
 - Apple on Android goes through a browser; needs the Apple Services ID set up in Clerk for production (dev uses Clerk's shared credentials).
 
-### Phase 9 — Backend (Convex)
-- Schema from project-scope §5; `ConvexProviderWithClerk`; Clerk webhook.
-- Swap each mock for queries and mutations, area by area, in the same order as the UI phases.
-- Username availability → query on the unique `username` index (still mocked in `src/lib/username.ts`); onboarding → mutation that sets `onboarded`, `termsAcceptedAt`, avatar. Move `onboarded` off Clerk `unsafeMetadata` (users can edit it) into Convex, or into Clerk `publicMetadata` set by the webhook.
-- Convex function tests (permissions, owner-only deletes, blocks, username uniqueness, deletion cascade).
+### Phase 9 — Backend (Convex) ✅ code done (2026-11-05), not yet tested on a device
+All sample data is gone (`mock-data.ts` deleted); every hook in `src/lib/` keeps its name and reads Convex.
+
+- [x] Schema (`convex/schema.ts`) from scope §5, plus `users.clerkImageUrl` (Google / Apple photo, the default avatar), `users.deletingAt`, `conversations.lastMessageSenderId` / `lastMessageKind`, `messages.width` / `height`, `reports.targetUserId`
+- [x] Auth: `convex/auth.config.ts` (Clerk issuer from `CLERK_JWT_ISSUER_DOMAIN`), `ConvexProviderWithClerk` in `_layout.tsx`. Users are found by `clerkId` = token `subject`. `src/lib/auth.tsx` now derives `onboarding` / `signedIn` from `users.onboarded` (off Clerk `unsafeMetadata`), and calls `users.ensure` on first sign-in to create the row. The splash stays up until you, the member directory and your follows have loaded
+- [x] Onboarding: live check on the unique `username` index (`users.usernameAvailable`, 300 ms debounce); `users.completeOnboarding` sets username, `onboarded`, `termsAcceptedAt`, and an avatar uploaded to Convex storage (no longer Clerk `setProfileImage`)
+- [x] Functions: `users` (me, directory, profile, members, suggested, search, updateProfile, notification prefs, deleteMe), `posts` (upload URL, feed, explore, byUser, get, create, updateCaption, remove, likers), `social` (likes, comments, follows, blocks, myGraph), `messages` (conversations, thread, send, markRead), `activity` (list, markAllRead, unread dots), `reports.create`. Every write checks permissions server-side: owner-only deletes, members only, block rules, length limits (A10), upload type and size (photo ≤ 15 MB, video ≤ 50 MB, ≤ 30 s)
+- [x] Uploads: `src/lib/upload.ts` POSTs the file to a Convex upload URL with progress (XHR), then `posts.create`. Videos send the poster too. The Home upload row shows real progress and real failures
+- [x] Optimistic updates (scope §6): likes, follows, block / unblock, comments, text and post messages, notification switches
+- [x] Account deletion: `users.deleteMe` hides the account at once and schedules `account.deleteUserData`, which works through posts (+ files), likes, comments, follows, notifications, blocks, push tokens, then the user row, 50 rows per transaction. Messages stay ("Deleted user"). Then the app deletes the Clerk user
+- [x] Clerk webhook `convex/http.ts` at `/clerk-webhook`: `user.created` / `user.updated` (name, photo), `user.deleted` (same cascade). Svix signature checked with Web Crypto
+- [x] Tests: `convex/app.test.ts` (`npm test`, 9 tests): signed-out access, username uniqueness and format, onboarding gate, owner-only deletes, like counts + Activity, feed, blocks both ways, messages + read receipts, deletion cascade
+
+Still to do:
+- **Clerk Dashboard → Integrations → Convex: turn it on.** Without it Clerk issues no `aud: "convex"` token, Convex never authenticates, and the app stays on the splash after sign-in
+- **Webhook**: Clerk Dashboard → Webhooks → add `https://incredible-sandpiper-787.convex.site/clerk-webhook` with `user.created`, `user.updated`, `user.deleted`; then `npx convex env set CLERK_WEBHOOK_SECRET whsec_…`. The app works without it (`users.ensure`, `users.deleteMe`), but a deletion from the Clerk dashboard won't cascade
+- Existing test accounts saw onboarding in Clerk `unsafeMetadata`; they go through onboarding once more (Convex has no row for them)
+- Restart the dev server so it picks up `.env.local`. No dev-build rebuild needed (Convex is JS only)
+- With no sample data, the app is empty until people sign up and post. A second account (another Google account) is the easiest way to try follows, likes and messages
+- Photo messages aren't optimistic (they upload first). Uploads don't survive an app restart. Feed and Explore are capped (50 / 90 posts, no paging yet)
+- Stored `commentCount` includes comments from people you blocked; the post screen lists only the visible ones
+- Share links are `withfriends://post/{id}` until the https site exists (A12); the old `withfriends.app/p/{shortId}` placeholder is gone
 
 ### Phase 10 — Push, CI, release
 - `expo-notifications` + FCM credentials in EAS; per-type preferences.
@@ -199,11 +217,15 @@ Still to do before it runs:
 | System camera app for capture, not an in-app camera (`expo-camera`) | No custom camera UI to build or keep working across Android devices; the board has no camera design | If you want an in-app camera screen |
 | Poster frames from `expo-video`, not `expo-video-thumbnails` | `expo-video-thumbnails` is deprecated; `expo-video` is needed for playback anyway | — |
 | Photos capped at 2048 px long edge, JPEG 0.8 | Sharp on phone screens, a few hundred KB, small next to Convex storage limits (scope §11.4) | If photos look soft, or storage gets tight |
-| Sample photos from picsum.photos by fixed ID | No binary assets in the repo for throwaway data; same images every launch | Phase 9 (real uploads) |
+| ~~Sample photos from picsum.photos~~ Sample data removed in Phase 9 | — | — |
 | Light/dark override via RN `Appearance.setColorScheme`, saved in `expo-secure-store` | Native views (glass tab bar, alerts, keyboard) switch too, not only our colours. Secure store is already in the dev build, so no rebuild; a theme setting isn't secret, but adding a key-value store just for this isn't worth a native rebuild | If another non-secret setting needs storing: move these to `expo-sqlite/kv-store` |
 | `lucide-react-native` for icons | Line style matches the board; stroke width is adjustable | — |
 | Roboto bundled on both platforms | design.md: Roboto everywhere | — |
 | `Stack.Protected` route guards | Each auth state unlocks exactly one set of routes; Clerk slots in without changing routes | — |
 | Board sign-in screens + Clerk `useSSO` (browser) for Google and Apple | Matches the board; works with Clerk's dev credentials. Clerk's `AuthView` was tried and removed because its layout and copy are Clerk's | Native Google sheet (`@clerk/expo-google-signin`) needs Google Cloud OAuth clients; consider before release |
 | Profiles and follower lists on the root stack, no tab bar | Same as `post/[id]`; one stack, simple back behaviour. Stacks inside each tab would keep the bar (board 12) but double every pushed route | If losing the tab bar on profiles feels wrong on the phone |
-| Onboarding state in Clerk `unsafeMetadata` | Lets onboarding work before Convex exists | Phase 9 |
+| ~~Onboarding state in Clerk `unsafeMetadata`~~ Moved to Convex `users.onboarded` in Phase 9 | Users could edit `unsafeMetadata` | — |
+| Member directory (`users.directory`) and your follow / block IDs (`social.myGraph`) loaded once in `PostsProvider` | Keeps `useUsers()`, `useFollowing()`, `useBlocks()` synchronous, so screens barely changed; ~10 users (scope §1) | Past a few hundred members: look people up per screen |
+| Users found by `clerkId` (token `subject`), not `tokenIdentifier` | Matches the scope and the webhook payload; one Clerk issuer per deployment | If a second auth provider is added |
+| Clerk webhook verified by hand (Web Crypto HMAC), not the `svix` package | No extra dependency; runs in the default Convex runtime | If Clerk changes its signing scheme |
+| Someone who blocked you looks like a deleted account; someone you blocked stays visible on their profile and thread with Unblock | "Hides both ways" (scope §8) while still letting you undo a block | — |

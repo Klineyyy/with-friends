@@ -11,9 +11,8 @@ import { ProfileHeader } from "@/components/ProfileHeader";
 import { TopBar } from "@/components/TopBar";
 import { Button, IconButton } from "@/components/ui";
 import { useBlockActions } from "@/lib/blocks";
-import { ME_ID } from "@/lib/mock-data";
 import { openThread } from "@/lib/open-profile";
-import { useFollowing, userExists, useUserPosts, useUsers } from "@/lib/posts";
+import { useFollowing, useMe, useUserExists, useUserPosts, useUsers } from "@/lib/posts";
 import { useReport } from "@/lib/safety";
 import { space, useColors } from "@/theme";
 
@@ -23,6 +22,8 @@ export default function UserProfile() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const userById = useUsers();
+  const me = useMe();
+  const userExists = useUserExists();
   const posts = useUserPosts(id);
   const { isFollowing, follow, unfollow } = useFollowing();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -30,7 +31,7 @@ export default function UserProfile() {
   const report = useReport();
 
   // Your own profile lives on the Profile tab.
-  if (id === ME_ID) return <Redirect href="/profile" />;
+  if (id === me.id) return <Redirect href="/profile" />;
 
   if (!userExists(id)) {
     return (
@@ -60,7 +61,7 @@ export default function UserProfile() {
         trailing={<IconButton icon={Ellipsis} accessibilityLabel="More" onPress={() => setMenuOpen(true)} />}
       />
       <PhotoGrid
-        posts={blocked ? [] : posts}
+        posts={blocked ? [] : (posts ?? [])}
         contentContainerStyle={{ paddingBottom: insets.bottom + space.md }}
         ListHeaderComponent={
           <ProfileHeader
@@ -95,7 +96,7 @@ export default function UserProfile() {
           />
         }
         ListEmptyComponent={
-          <View style={[styles.empty, { borderTopColor: colors.divider }]}>
+          posts === undefined && !blocked ? undefined : <View style={[styles.empty, { borderTopColor: colors.divider }]}>
             {blocked ? (
               <EmptyState
                 icon={Ban}

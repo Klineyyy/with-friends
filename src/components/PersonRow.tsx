@@ -2,9 +2,8 @@ import type { ReactNode } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 
 import { Avatar, Button, Text } from "@/components/ui";
-import { ME_ID } from "@/lib/mock-data";
 import { openProfile } from "@/lib/open-profile";
-import { useFollowing, type User } from "@/lib/posts";
+import { useFollowing, useMe, type User } from "@/lib/posts";
 import { space } from "@/theme";
 
 /**
@@ -16,7 +15,7 @@ import { space } from "@/theme";
 export function PersonRow({ user, action, onPress }: { user: User; action?: ReactNode; onPress?: () => void }) {
   const { isFollowing, follow, unfollow } = useFollowing();
   const following = isFollowing(user.id);
-  const isMe = user.id === ME_ID;
+  const isMe = user.id === useMe().id;
 
   return (
     <View style={styles.row}>

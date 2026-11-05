@@ -1,4 +1,4 @@
-import { ClerkProvider } from "@clerk/expo";
+import { ClerkProvider, useAuth as useClerkAuth } from "@clerk/expo";
 import { tokenCache } from "@clerk/expo/token-cache";
 import {
   Roboto_400Regular,
@@ -6,15 +6,16 @@ import {
   Roboto_600SemiBold,
   useFonts,
 } from "@expo-google-fonts/roboto";
-import { Stack } from "expo-router";
+import { ConvexProviderWithClerk } from "convex/react-clerk";
+import { router, Stack, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import * as SystemUI from "expo-system-ui";
 import { useEffect } from "react";
 
 import { useAuth } from "@/lib/auth";
-import { InboxProvider } from "@/lib/inbox";
-import { PostsProvider } from "@/lib/posts";
+import { convex } from "@/lib/convex";
+import { PostsProvider, usePostsReady } from "@/lib/posts";
 import { SafetyProvider } from "@/lib/safety";
 import { useColors, useScheme } from "@/theme";
 
@@ -39,14 +40,14 @@ export default function RootLayout() {
 
   return (
     <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
-      <SchemeChrome />
-      <PostsProvider>
-        <SafetyProvider>
-          <InboxProvider>
+      <ConvexProviderWithClerk client={convex} useAuth={useClerkAuth}>
+        <SchemeChrome />
+        <PostsProvider>
+          <SafetyProvider>
             <RootStack />
-          </InboxProvider>
-        </SafetyProvider>
-      </PostsProvider>
+          </SafetyProvider>
+        </PostsProvider>
+      </ConvexProviderWithClerk>
     </ClerkProvider>
   );
 }
@@ -63,14 +64,33 @@ function SchemeChrome() {
 
 /** Each auth state unlocks exactly one part of the app. */
 function RootStack() {
-  const { status } = useAuth();
+  const { status: authStatus } = useAuth();
+  const dataReady = usePostsReady();
   const colors = useColors();
+  // Signed in: also wait for the member directory and your follows, so names never flash "Deleted user".
+  const status = authStatus === "signedIn" && !dataReady ? "loading" : authStatus;
 
-  // Keep the splash up while Clerk restores the session, so a signed-in user
-  // never sees the sign-in screen flash on cold start.
+  // Keep the splash up while Clerk restores the session and Convex loads you,
+  // so a signed-in user never sees the sign-in screen flash on cold start.
   useEffect(() => {
     if (status !== "loading") SplashScreen.hideAsync();
   }, [status]);
+
+  // When a guard flips (e.g. right after Google sign-in) the router falls back
+  // to some allowed screen, which can be Community rules with nothing under it.
+  // Back from there goes to "/", which is guarded, so you bounce straight back.
+  // Put people where they belong; a reading page is only kept if it was opened
+  // on top of something.
+  const top = useSegments()[0] as string | undefined;
+  useEffect(() => {
+    if (status === "loading") return;
+    const onReadingPage = top === "rules" || top === "terms";
+    if (status === "onboarding" && top !== "onboarding" && !(onReadingPage && router.canGoBack())) {
+      router.replace("/onboarding");
+    } else if (status === "signedIn" && onReadingPage && !router.canGoBack()) {
+      router.replace("/");
+    }
+  }, [status, top]);
 
   if (status === "loading") return null;
 

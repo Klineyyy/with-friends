@@ -75,7 +75,7 @@ All IDs are Convex document IDs. Counts are stored on the parent record and upda
 
 | Table | Key fields | Constraints / indexes |
 |---|---|---|
-| `users` | `clerkId`, `username`, `displayName`, `bio`, `avatarStorageId?`, `onboarded`, `termsAcceptedAt?`, `notificationPrefs {likes, comments, follows, messages}`, `followerCount`, `followingCount`, `postCount` | unique `clerkId`, unique `username` (lowercase, `[a-z0-9_.]`, 3–30) |
+| `users` | `clerkId`, `username`, `displayName`, `bio`, `avatarStorageId?`, `onboarded`, `termsAcceptedAt?`, `notificationPrefs {likes, comments, follows, messages}`, `followerCount`, `followingCount`, `postCount` | unique `clerkId`, unique `username` (kept as typed, e.g. "Kline"; `[A-Za-z0-9_.]`, 3–30; unique ignoring case via `usernameKey`) |
 | `pushTokens` | `userId`, `token`, `platform` | unique `token`; by `userId` |
 | `posts` | `authorId`, `mediaType` (`image`/`video`), `mediaStorageId`, `posterStorageId?` (video), `width`, `height`, `durationMs?`, `caption?` (≤2,200), `likeCount`, `commentCount`, `createdAt` | by `authorId + createdAt`; by `createdAt` (Explore) |
 | `follows` | `followerId`, `followeeId` | unique pair; indexes both directions |

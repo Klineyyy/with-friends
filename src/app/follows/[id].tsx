@@ -19,7 +19,9 @@ export default function Follows() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const userById = useUsers();
-  const { followers, following } = useFollowLists(params.id);
+  const lists = useFollowLists(params.id);
+  const followers = lists?.followers ?? [];
+  const following = lists?.following ?? [];
   const [tab, setTab] = useState<Tab>(params.tab === "following" ? "following" : "followers");
 
   const user = userById(params.id);

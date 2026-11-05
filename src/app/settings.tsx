@@ -8,7 +8,6 @@ import { TopBar } from "@/components/TopBar";
 import { Avatar, Text } from "@/components/ui";
 import { APP_VERSION, INVITE_ONLY } from "@/lib/app-info";
 import { useAuth } from "@/lib/auth";
-import { useClearConversations } from "@/lib/inbox";
 import { useBlocks, useFollowing, useMe } from "@/lib/posts";
 import { space, useAppearancePref, useColors } from "@/theme";
 
@@ -91,10 +90,9 @@ export default function Settings() {
   );
 }
 
-/** Dev builds only: empty states that are otherwise hard to reach with sample data. */
+/** Dev builds only: empty states that are otherwise hard to reach. */
 function DevTools() {
   const { clearAll } = useFollowing();
-  const clearMessages = useClearConversations();
   return (
     <>
       <SettingsDivider />
@@ -102,7 +100,6 @@ function DevTools() {
         Dev only
       </Text>
       <SettingsRow label="Unfollow everyone" description="See the empty Home" onPress={clearAll} />
-      <SettingsRow label="Clear messages" description="See the empty Messages" onPress={clearMessages} />
     </>
   );
 }

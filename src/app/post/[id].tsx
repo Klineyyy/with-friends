@@ -17,14 +17,13 @@ import { PostItem } from "@/components/post/PostItem";
 import { TopBar } from "@/components/TopBar";
 import { Avatar, Button, Text } from "@/components/ui";
 import { timeAgo } from "@/lib/format";
-import { ME_ID } from "@/lib/mock-data";
 import {
   COMMENT_MAX_LENGTH,
+  useComments,
   useMe,
   usePost,
   usePostActions,
   useUsers,
-  useVisibleComments,
   type Comment,
   type Post,
 } from "@/lib/posts";
@@ -42,6 +41,14 @@ export default function PostScreen() {
   const { id, comment } = useLocalSearchParams<{ id: string; comment?: string }>();
   const post = usePost(id);
   const colors = useColors();
+
+  if (post === undefined) {
+    return (
+      <View style={[styles.root, { backgroundColor: colors.background }]}>
+        <TopBar back title="Post" />
+      </View>
+    );
+  }
 
   if (!post) {
     return (
@@ -72,7 +79,7 @@ export default function PostScreen() {
 
 function PostWithComments({ post, focusComment }: { post: Post; focusComment: boolean }) {
   const colors = useColors();
-  const comments = useVisibleComments(post);
+  const comments = useComments(post.id) ?? [];
   const { addComment } = usePostActions();
   const list = useRef<FlatList<Comment>>(null);
   const input = useRef<ComponentRef<typeof TextInput> | null>(null);
@@ -175,10 +182,11 @@ function CommentBar({
 
 function CommentRow({ postId, comment }: { postId: string; comment: Comment }) {
   const userById = useUsers();
+  const me = useMe();
   const report = useReport();
   const { deleteComment } = usePostActions();
-  const author = userById(comment.authorId);
-  const mine = comment.authorId === ME_ID;
+  const author = comment.author ?? userById(comment.authorId);
+  const mine = comment.authorId === me.id;
 
   function confirmDelete() {
     Alert.alert("Delete comment?", undefined, [
