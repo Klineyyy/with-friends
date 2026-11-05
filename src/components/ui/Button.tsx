@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Pressable, StyleSheet, type PressableProps, type StyleProp, type ViewStyle } from "react-native";
 
 import { radius, typeScale, useColors } from "@/theme";
@@ -9,10 +10,12 @@ type Props = Omit<PressableProps, "children" | "style"> & {
   variant?: "primary" | "secondary";
   size?: "large" | "compact";
   style?: StyleProp<ViewStyle>;
+  /** Leading icon (e.g. the Google / Apple logo). Gets the label colour. */
+  icon?: (color: string) => ReactNode;
 };
 
 /** Primary = filled, secondary = thin outline. Disabled = grey fill, grey text. */
-export function Button({ label, variant = "primary", size = "large", disabled, style, ...rest }: Props) {
+export function Button({ label, variant = "primary", size = "large", disabled, icon, style, ...rest }: Props) {
   const colors = useColors();
 
   const fill = disabled
@@ -41,6 +44,7 @@ export function Button({ label, variant = "primary", size = "large", disabled, s
       ]}
       {...rest}
     >
+      {icon ? icon(labelColor) : null}
       <Text style={[typeScale.button, { color: labelColor }]}>{label}</Text>
     </Pressable>
   );
@@ -48,6 +52,8 @@ export function Button({ label, variant = "primary", size = "large", disabled, s
 
 const styles = StyleSheet.create({
   base: {
+    flexDirection: "row",
+    gap: 10,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: StyleSheet.hairlineWidth * 2,

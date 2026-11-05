@@ -26,7 +26,7 @@ Posting a photo or video and seeing what your friends posted — fast, reliable,
 | Routing | Expo Router `~58.0.30`, routes in `src/app/` | |
 | Tabs | Native tabs via `expo-router/native-tabs` (stable import in SDK 58; `unstable-native-tabs` was SDK 54–57) | Template already uses it |
 | Styling | NativeWind | v5 is `@preview`, needs RN ≥ 0.81; v4.2.x is stable. Version decided at scaffold — see risks |
-| Auth | Clerk — Google and Apple sign-in, **Invite-only access mode** | |
+| Auth | Clerk — Google and Apple sign-in, plus username/email + password once a password is added in Settings, **Invite-only access mode** | |
 | Backend, DB, files, realtime | Convex | |
 | Push | `expo-notifications` + Expo Push Service, sent from Convex actions | |
 | Builds & updates | EAS Build (`development`, `preview`, `production`), EAS Update | |
@@ -39,7 +39,7 @@ App config: name `With Friends`, slug `with-friends`, deep-link scheme `withfrie
 
 ### In scope for v1
 - **Access:** invite-only. Admin (you) sends invitations from the Clerk dashboard; only invited people can create accounts.
-- **Sign in** with Google or Apple.
+- **Sign in** with Google or Apple. After the first sign-in you can add a password in Settings, then sign in with username (or email) + password. Sign-up is Google / Apple only.
 - **Onboarding** on first sign-in: choose username, optionally change avatar, accept terms.
 - **Profile:** display name, username, bio (≤150 chars), avatar. View and edit own; view anyone's. Follower/following lists. Usernames can be changed, so links use IDs, never usernames.
 - **Posts:** one photo or one video (≤30 s, ≤50 MB) plus optional caption. Images compressed on device; videos played as uploaded. Caption editable later; media not. Delete own posts.

@@ -104,6 +104,7 @@ function RootStack() {
     >
       <Stack.Protected guard={status === "signedOut"}>
         <Stack.Screen name="sign-in" />
+        <Stack.Screen name="sign-in-password" options={{ animation: "default" }} />
       </Stack.Protected>
       <Stack.Protected guard={status === "onboarding"}>
         <Stack.Screen name="onboarding" />
@@ -123,6 +124,7 @@ function RootStack() {
         <Stack.Screen name="appearance" options={{ animation: "default" }} />
         <Stack.Screen name="blocked" options={{ animation: "default" }} />
         <Stack.Screen name="delete-account" options={{ animation: "default" }} />
+        <Stack.Screen name="password" options={{ animation: "default" }} />
       </Stack.Protected>
       {/*
         Reading pages: open from onboarding and Settings. Never leave a screen

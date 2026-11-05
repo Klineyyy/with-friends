@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import { Ban, Bell, FileText, Lock, LogOut, SunMoon, Trash2 } from "lucide-react-native";
+import { Ban, Bell, FileText, KeyRound, Lock, LogOut, SunMoon, Trash2 } from "lucide-react-native";
 import { Alert, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -50,6 +50,13 @@ export default function Settings() {
         </View>
         <SettingsDivider />
 
+        <SettingsRow
+          icon={KeyRound}
+          label="Password"
+          value={account?.hasPassword ? undefined : "Not set"}
+          chevron
+          onPress={() => router.push("/password")}
+        />
         <SettingsRow icon={Bell} label="Notifications" chevron onPress={() => router.push("/notifications")} />
         <SettingsRow
           icon={SunMoon}

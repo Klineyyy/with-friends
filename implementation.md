@@ -167,6 +167,9 @@ Done out of order (before Phases 2–7) at your request.
 - [x] Onboarding saves `onboarded`, `username`, `termsAcceptedAt` to Clerk `unsafeMetadata` (**TEMPORARY** until Convex) and a new photo via `user.setProfileImage`. Default avatar = Google/Apple photo
 - [x] Dev instance: Google and Apple enabled
 - [x] `expo-dev-client`, `expo-secure-store` (token cache), `expo-auth-session` + `expo-crypto` (SSO) installed
+- [x] **Username / email + password sign-in** (2026-11-05, your request). Sign-up stays Google / Apple only; a password is added afterwards in Settings → **Password** (`src/app/password.tsx`, `user.updatePassword`). Sign in at `src/app/sign-in-password.tsx` (third button on screen 1, `signIn.password({ identifier })`). Clerk's Device Trust asks for an emailed code the first time a password is used on a new device (`needs_client_trust` → `signIn.mfa.sendEmailCode`). Setting a password can need **reverification**: handled with `useReverification` + an emailed code (`session.startVerification`). No forgot-password flow: the screen tells you to use Google / Apple, then change it in Settings
+- [x] **Username in Clerk**: Convex owns it; `src/lib/auth.tsx` mirrors it onto the Clerk user (`user.update({ username })`) so username sign-in works. Clerk compares usernames without case, like Convex
+- [x] Dev instance config (via `clerk config patch`): password on (optional, min 8, breach check on), email usable for sign-in with `email_code` verification, username usable for sign-in (3–30, extended characters so `.` is allowed, numeric allowed: matches `src/lib/username.ts`). **Apply the same to the production instance**
 
 Still to do before it runs:
 - [x] Android package ID `com.klinegarcia.withfriends` in `app.json`; `eas.json` with `development` / `preview` / `production` profiles

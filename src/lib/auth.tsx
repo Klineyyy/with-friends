@@ -25,6 +25,8 @@ export type Account = {
   username: string | null;
   /** "Google" or "Apple": how you signed in (board 17 account row). */
   provider: string | null;
+  /** Has set a password (Settings → Password), so can sign in with username + password. */
+  hasPassword: boolean;
 };
 
 export function useAuth() {
@@ -48,6 +50,18 @@ export function useAuth() {
       .finally(() => (ensuring.current = false));
   }, [me, ensure]);
 
+  // Username sign-in: Clerk needs the username too. Convex owns it (picked at
+  // onboarding), so mirror it onto the Clerk user. Clerk compares usernames
+  // without case, so only push a real change, once per value.
+  const syncedUsername = useRef<string | null>(null);
+  useEffect(() => {
+    const username = me?.username;
+    if (!user || !username || syncedUsername.current === username) return;
+    syncedUsername.current = username;
+    if (user.username?.toLowerCase() === username.toLowerCase()) return;
+    user.update({ username }).catch((error) => console.warn("Clerk username sync failed", error));
+  }, [user, me?.username]);
+
   const status: AuthStatus =
     !isLoaded || (isSignedIn && (convexAuth.isLoading || !convexAuth.isAuthenticated || !me))
       ? "loading"
@@ -64,6 +78,7 @@ export function useAuth() {
         avatarUri: me?.avatarUri ?? (user.hasImage ? user.imageUrl : null),
         username: me?.username || null,
         provider: user.externalAccounts[0]?.providerTitle() ?? null,
+        hasPassword: user.passwordEnabled,
       }
     : null;
 
