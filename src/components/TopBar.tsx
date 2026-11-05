@@ -1,10 +1,10 @@
 import { ArrowLeft } from "lucide-react-native";
-import { router } from "expo-router";
 import type { ReactNode } from "react";
 import { StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { IconButton, Text } from "@/components/ui";
+import { goBack } from "@/lib/go-back";
 import { space, useColors } from "@/theme";
 
 type Props = {
@@ -24,7 +24,7 @@ export function TopBar({ title, back, leading, trailing }: Props) {
   const lead =
     leading ??
     (back ? (
-      <IconButton icon={ArrowLeft} accessibilityLabel="Back" onPress={() => router.back()} />
+      <IconButton icon={ArrowLeft} accessibilityLabel="Back" onPress={() => goBack()} />
     ) : null);
 
   return (

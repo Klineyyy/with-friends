@@ -1,4 +1,3 @@
-import { router } from "expo-router";
 import { useState } from "react";
 import { Alert, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -7,6 +6,7 @@ import { TopBar } from "@/components/TopBar";
 import { Button, Checkbox, Text } from "@/components/ui";
 import { INVITE_ONLY } from "@/lib/app-info";
 import { useAuth } from "@/lib/auth";
+import { goBack } from "@/lib/go-back";
 import { space, useColors } from "@/theme";
 
 /**
@@ -58,7 +58,7 @@ export default function DeleteAccount() {
           disabled={!understood || deleting}
           onPress={() => void onDelete()}
         />
-        <Button label="Cancel" variant="secondary" disabled={deleting} onPress={() => router.back()} />
+        <Button label="Cancel" variant="secondary" disabled={deleting} onPress={() => goBack()} />
       </View>
     </View>
   );

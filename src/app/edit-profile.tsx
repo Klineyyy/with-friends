@@ -1,4 +1,3 @@
-import { router } from "expo-router";
 import { useState } from "react";
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -6,6 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { TopBar } from "@/components/TopBar";
 import { Avatar, Button, Text, TextField } from "@/components/ui";
 import { PROFILE_LIMITS } from "@/lib/format";
+import { goBack } from "@/lib/go-back";
 import { useMe, useUpdateProfile } from "@/lib/posts";
 import { space, useColors } from "@/theme";
 
@@ -26,7 +26,7 @@ export default function EditProfile() {
 
   function save() {
     updateProfile({ displayName: displayName.trim(), bio: bio.trim() });
-    router.back();
+    goBack();
   }
 
   return (

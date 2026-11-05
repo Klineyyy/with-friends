@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { PersonRow } from "@/components/PersonRow";
 import { TopBar } from "@/components/TopBar";
 import { IconButton, SearchField, Text } from "@/components/ui";
+import { goBack } from "@/lib/go-back";
 import { useMembers } from "@/lib/inbox";
 import { useSearchPeople } from "@/lib/posts";
 import { space, useColors } from "@/theme";
@@ -30,7 +31,7 @@ export default function NewMessage() {
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <TopBar
         title="New message"
-        leading={<IconButton icon={X} accessibilityLabel="Close" onPress={() => router.back()} />}
+        leading={<IconButton icon={X} accessibilityLabel="Close" onPress={() => goBack()} />}
       />
       <View style={styles.search}>
         <SearchField value={query} onChangeText={setQuery} placeholder="Search people" autoFocus />

@@ -104,9 +104,15 @@ function RootStack() {
         <Stack.Screen name="blocked" options={{ animation: "default" }} />
         <Stack.Screen name="delete-account" options={{ animation: "default" }} />
       </Stack.Protected>
-      {/* Reading pages: open from onboarding (before you're signed in fully) and Settings. */}
-      <Stack.Screen name="rules" options={{ animation: "default" }} />
-      <Stack.Screen name="terms" options={{ animation: "default" }} />
+      {/*
+        Reading pages: open from onboarding and Settings. Never leave a screen
+        outside a guard: when signed out, Expo Router sends you to the first
+        unguarded screen alphabetically, and "rules" would beat "sign-in".
+      */}
+      <Stack.Protected guard={status === "onboarding" || status === "signedIn"}>
+        <Stack.Screen name="rules" options={{ animation: "default" }} />
+        <Stack.Screen name="terms" options={{ animation: "default" }} />
+      </Stack.Protected>
     </Stack>
   );
 }

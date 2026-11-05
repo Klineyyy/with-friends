@@ -26,6 +26,7 @@ src/
 - Screens use `useColors()` and `<Text variant>`. No hard-coded hex values or font sizes in screens.
 - Fonts are picked by `fontFamily` per weight (`Roboto_600SemiBold`), never by `fontWeight`, since Android needs one family per weight.
 - Icons: `lucide-react-native`, 24 px, `strokeWidth={1.75}`.
+- Going back (←, ✕, Cancel, after Save): `goBack()` from `src/lib/go-back.ts`, never bare `router.back()`. A screen can be first in the stack (reopened after a reload, or opened from a link), and then `router.back()` fails with "GO_BACK was not handled"; `goBack()` goes Home instead.
 
 ## Phases
 
@@ -139,7 +140,7 @@ Screens 17–19, 21.
 - [x] Blocking: `useBlocks()` in `src/lib/posts.tsx`, confirm dialogs in `useBlockActions()` (`src/lib/blocks.ts`). Block from profile ⋯ or thread ⋯, or after reporting. Blocking also unfollows. A blocked person is hidden from Home, Explore, search, "People you may know", follower lists, comments (and counts), Messages, New message, Activity and the unread dots. Their profile shows "You blocked maya" + Unblock; their thread shows "You blocked maya. They can't message you." + Unblock instead of the composer
 - [x] `blocked` (not on the board): person rows with Unblock (asks first); empty state "No one blocked"
 - [x] `delete-account` (21): title, explanation, "I understand this can't be undone" checkbox, Delete account (disabled until ticked, "Deleting…") + Cancel. **Really deletes the Clerk user** (`user.delete()`), which signs you out. Needs "Allow users to delete their accounts" on in Clerk (on by default); otherwise the error shows in an alert
-- [x] `rules` and `terms` (not on the board): plain reading pages (`DocPage`). Open from Settings and from the onboarding checkbox text; routes sit outside the auth guards so onboarding can reach them
+- [x] `rules` and `terms` (not on the board): plain reading pages (`DocPage`). Open from Settings and from the onboarding checkbox text; guarded by "onboarding or signed in". Don't leave any route outside a `Stack.Protected`: when signed out, Expo Router redirects to the first unguarded route alphabetically, so an unguarded `rules` opened instead of `sign-in` (fixed 2026-11-05)
 - [x] Primitives: `Switch` (black track + white knob / outline + grey knob, no slide animation), `Radio` (black ring + dot). `SettingsRow`, `RadioRow`, `SettingsDivider`
 
 Open items for this area:
