@@ -1,7 +1,7 @@
 import { Redirect, router, useLocalSearchParams } from "expo-router";
 import { Ban, Ellipsis, Flag, ImageIcon, UserX } from "lucide-react-native";
 import { useState } from "react";
-import { Alert, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { EmptyState } from "@/components/EmptyState";
@@ -10,12 +10,14 @@ import { PhotoGrid } from "@/components/PhotoGrid";
 import { ProfileHeader } from "@/components/ProfileHeader";
 import { TopBar } from "@/components/TopBar";
 import { Button, IconButton } from "@/components/ui";
+import { useBlockActions } from "@/lib/blocks";
 import { ME_ID } from "@/lib/mock-data";
 import { openThread } from "@/lib/open-profile";
 import { useFollowing, userExists, useUserPosts, useUsers } from "@/lib/posts";
+import { useReport } from "@/lib/safety";
 import { space, useColors } from "@/theme";
 
-/** Board 12: someone else's profile. ⋯ opens Block / Report. */
+/** Board 12: someone else's profile. ⋯ opens Block / Report. Blocked: no posts, just Unblock. */
 export default function UserProfile() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useColors();
@@ -24,6 +26,8 @@ export default function UserProfile() {
   const posts = useUserPosts(id);
   const { isFollowing, follow, unfollow } = useFollowing();
   const [menuOpen, setMenuOpen] = useState(false);
+  const { isBlocked, confirmBlock, confirmUnblock } = useBlockActions();
+  const report = useReport();
 
   // Your own profile lives on the Profile tab.
   if (id === ME_ID) return <Redirect href="/profile" />;
@@ -46,10 +50,7 @@ export default function UserProfile() {
 
   const user = userById(id);
   const following = isFollowing(id);
-
-  // TEMPORARY: blocking and reporting arrive with Settings and safety (Phase 7).
-  const notYet = (what: string) =>
-    Alert.alert(`${what} isn't ready yet`, "It comes with Settings and safety.");
+  const blocked = isBlocked(id);
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -59,33 +60,51 @@ export default function UserProfile() {
         trailing={<IconButton icon={Ellipsis} accessibilityLabel="More" onPress={() => setMenuOpen(true)} />}
       />
       <PhotoGrid
-        posts={posts}
+        posts={blocked ? [] : posts}
         contentContainerStyle={{ paddingBottom: insets.bottom + space.md }}
         ListHeaderComponent={
           <ProfileHeader
             user={user}
             actions={
-              <>
+              blocked ? (
                 <Button
-                  label={following ? "Following" : "Follow"}
-                  variant={following ? "secondary" : "primary"}
-                  accessibilityLabel={following ? `Unfollow ${user.username}` : `Follow ${user.username}`}
-                  style={styles.fill}
-                  onPress={() => (following ? unfollow(id) : follow(id))}
-                />
-                <Button
-                  label="Message"
+                  label="Unblock"
                   variant="secondary"
+                  accessibilityLabel={`Unblock ${user.username}`}
                   style={styles.fill}
-                  onPress={() => openThread(id)}
+                  onPress={() => confirmUnblock(user)}
                 />
-              </>
+              ) : (
+                <>
+                  <Button
+                    label={following ? "Following" : "Follow"}
+                    variant={following ? "secondary" : "primary"}
+                    accessibilityLabel={following ? `Unfollow ${user.username}` : `Follow ${user.username}`}
+                    style={styles.fill}
+                    onPress={() => (following ? unfollow(id) : follow(id))}
+                  />
+                  <Button
+                    label="Message"
+                    variant="secondary"
+                    style={styles.fill}
+                    onPress={() => openThread(id)}
+                  />
+                </>
+              )
             }
           />
         }
         ListEmptyComponent={
           <View style={[styles.empty, { borderTopColor: colors.divider }]}>
-            <EmptyState icon={ImageIcon} title="No posts yet" />
+            {blocked ? (
+              <EmptyState
+                icon={Ban}
+                title={`You blocked ${user.username}`}
+                body="They can't see your posts or message you. Unblock to see theirs."
+              />
+            ) : (
+              <EmptyState icon={ImageIcon} title="No posts yet" />
+            )}
           </View>
         }
       />
@@ -93,8 +112,10 @@ export default function UserProfile() {
         visible={menuOpen}
         onClose={() => setMenuOpen(false)}
         items={[
-          { icon: Ban, label: `Block ${user.username}`, onPress: () => notYet("Blocking") },
-          { icon: Flag, label: `Report ${user.username}`, onPress: () => notYet("Reporting") },
+          blocked
+            ? { icon: Ban, label: `Unblock ${user.username}`, onPress: () => confirmUnblock(user) }
+            : { icon: Ban, label: `Block ${user.username}`, onPress: () => confirmBlock(user) },
+          { icon: Flag, label: `Report ${user.username}`, onPress: () => report({ type: "user", id, userId: id }) },
         ]}
       />
     </View>

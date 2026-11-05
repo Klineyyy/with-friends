@@ -53,6 +53,8 @@ type State = {
   /** TEMPORARY: your edits, in memory until Convex owns the profile. `null` = not edited yet. */
   profile: ProfileEdits | null;
   uploads: Upload[];
+  /** People you blocked (scope §5 `blocks`). Hidden both ways. */
+  blocked: string[];
 };
 
 type Action =
@@ -64,7 +66,9 @@ type Action =
   | { type: "uploadFail"; id: string }
   | { type: "uploadDone"; id: string; post: Post }
   | { type: "clearFollowing" }
-  | { type: "updateProfile"; profile: ProfileEdits };
+  | { type: "updateProfile"; profile: ProfileEdits }
+  | { type: "block"; userId: string }
+  | { type: "unblock"; userId: string };
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
@@ -118,6 +122,15 @@ function reducer(state: State, action: Action): State {
       return { ...state, following: [] };
     case "updateProfile":
       return { ...state, profile: action.profile };
+    case "block":
+      // Blocking also ends the follow (Phase 9: both directions, in the mutation).
+      return {
+        ...state,
+        blocked: [...state.blocked.filter((id) => id !== action.userId), action.userId],
+        following: state.following.filter((id) => id !== action.userId),
+      };
+    case "unblock":
+      return { ...state, blocked: state.blocked.filter((id) => id !== action.userId) };
   }
 }
 
@@ -156,6 +169,7 @@ export function PostsProvider({ children }: { children: ReactNode }) {
     following: mockFollowing,
     profile: null,
     uploads: [],
+    blocked: [],
   }));
 
   const me: User = useMemo(
@@ -237,11 +251,11 @@ export function useUsers() {
 export function useFeed() {
   const { state } = useStore();
   return useMemo(() => {
-    const visible = new Set([ME_ID, ...state.following]);
+    const visible = new Set([ME_ID, ...state.following.filter((id) => !state.blocked.includes(id))]);
     return state.posts
       .filter((p) => visible.has(p.authorId))
       .sort((a, b) => b.createdAt - a.createdAt);
-  }, [state.posts, state.following]);
+  }, [state.posts, state.following, state.blocked]);
 }
 
 /** One post, or `null` if it doesn't exist (deleted). */
@@ -276,8 +290,11 @@ export function useFollowing() {
 export function useSuggestedPeople(limit = 5): User[] {
   const { state } = useStore();
   return useMemo(
-    () => mockUsers.filter((u) => !state.following.includes(u.id)).slice(0, limit),
-    [state.following, limit],
+    () =>
+      mockUsers
+        .filter((u) => !state.following.includes(u.id) && !state.blocked.includes(u.id))
+        .slice(0, limit),
+    [state.following, state.blocked, limit],
   );
 }
 
@@ -305,7 +322,10 @@ const newestFirst = (a: Post, b: Post) => b.createdAt - a.createdAt;
 /** Explore grid (board 10a): recent posts from everyone, newest first. */
 export function useExplorePosts(): Post[] {
   const { state } = useStore();
-  return useMemo(() => [...state.posts].sort(newestFirst), [state.posts]);
+  return useMemo(
+    () => state.posts.filter((p) => !state.blocked.includes(p.authorId)).sort(newestFirst),
+    [state.posts, state.blocked],
+  );
 }
 
 /** One person's posts, newest first (profile grid, board 11a / 12). */
@@ -335,23 +355,52 @@ export function useFollowLists(userId: string): { followers: User[]; following: 
       .map((u) => u.id);
     if (userId !== ME_ID && state.following.includes(userId)) followerIds.unshift(ME_ID);
     const followingIds = userId === ME_ID ? state.following : (mockFollowGraph[userId] ?? []);
-    return { followers: followerIds.map(userById), following: followingIds.map(userById) };
-  }, [state.following, userId, userById]);
+    const shown = (id: string) => !state.blocked.includes(id);
+    return {
+      followers: followerIds.filter(shown).map(userById),
+      following: followingIds.filter(shown).map(userById),
+    };
+  }, [state.following, state.blocked, userId, userById]);
 }
 
 /** People search (board 10b): username or display name contains the query. You're left out. */
 export function useSearchPeople(query: string): User[] {
+  const { state } = useStore();
   return useMemo(() => {
     const q = query.trim().toLowerCase().replace(/^@/, "");
     if (!q) return [];
     return mockUsers.filter(
-      (u) => u.username.includes(q) || u.displayName.toLowerCase().includes(q),
+      (u) =>
+        !state.blocked.includes(u.id) &&
+        (u.username.includes(q) || u.displayName.toLowerCase().includes(q)),
     );
-  }, [query]);
+  }, [query, state.blocked]);
 }
 
 /** Edit profile: display name and bio. TEMPORARY in memory; a Convex mutation in Phase 9. */
 export function useUpdateProfile() {
   const { dispatch } = useStore();
   return (profile: ProfileEdits) => dispatch({ type: "updateProfile", profile });
+}
+
+/**
+ * Blocking (scope §5, §8): someone you block is hidden from your feed, Explore,
+ * search, comments, messages and activity, and can't message you. TEMPORARY in
+ * memory; Convex `blocks` + permission checks in Phase 9.
+ */
+export function useBlocks() {
+  const { state, dispatch } = useStore();
+  const blocked = state.blocked;
+  return {
+    blockedIds: blocked,
+    isBlocked: useCallback((userId: string) => blocked.includes(userId), [blocked]),
+    block: (userId: string) => dispatch({ type: "block", userId }),
+    unblock: (userId: string) => dispatch({ type: "unblock", userId }),
+  };
+}
+
+/** A post's comments without those from people you blocked. */
+export function useVisibleComments(post: Post): Comment[] {
+  const { isBlocked } = useBlocks();
+  return useMemo(() => post.comments.filter((c) => !isBlocked(c.authorId)), [post.comments, isBlocked]);
 }

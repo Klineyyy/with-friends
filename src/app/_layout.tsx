@@ -15,6 +15,7 @@ import { useEffect } from "react";
 import { useAuth } from "@/lib/auth";
 import { InboxProvider } from "@/lib/inbox";
 import { PostsProvider } from "@/lib/posts";
+import { SafetyProvider } from "@/lib/safety";
 import { useColors, useScheme } from "@/theme";
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ?? "";
@@ -40,9 +41,11 @@ export default function RootLayout() {
     <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
       <SchemeChrome />
       <PostsProvider>
-        <InboxProvider>
-          <RootStack />
-        </InboxProvider>
+        <SafetyProvider>
+          <InboxProvider>
+            <RootStack />
+          </InboxProvider>
+        </SafetyProvider>
       </PostsProvider>
     </ClerkProvider>
   );
@@ -96,7 +99,14 @@ function RootStack() {
         <Stack.Screen name="settings" options={{ animation: "default" }} />
         <Stack.Screen name="thread/[id]" options={{ animation: "default" }} />
         <Stack.Screen name="new-message" options={{ animation: "default" }} />
+        <Stack.Screen name="notifications" options={{ animation: "default" }} />
+        <Stack.Screen name="appearance" options={{ animation: "default" }} />
+        <Stack.Screen name="blocked" options={{ animation: "default" }} />
+        <Stack.Screen name="delete-account" options={{ animation: "default" }} />
       </Stack.Protected>
+      {/* Reading pages: open from onboarding (before you're signed in fully) and Settings. */}
+      <Stack.Screen name="rules" options={{ animation: "default" }} />
+      <Stack.Screen name="terms" options={{ animation: "default" }} />
     </Stack>
   );
 }

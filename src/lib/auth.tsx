@@ -25,6 +25,8 @@ export type Account = {
   displayName: string | null;
   avatarUri: string | null;
   username: string | null;
+  /** "Google" or "Apple": how you signed in (board 17 account row). */
+  provider: string | null;
 };
 
 export function useAuth() {
@@ -48,6 +50,7 @@ export function useAuth() {
         displayName: user.fullName,
         avatarUri: user.hasImage ? user.imageUrl : null,
         username: meta.username ?? null,
+        provider: user.externalAccounts[0]?.providerTitle() ?? null,
       }
     : null;
 
@@ -71,5 +74,15 @@ export function useAuth() {
     await user.reload();
   }
 
-  return { status, account, completeOnboarding, signOut: () => signOut() };
+  /**
+   * Board 21. Deletes the Clerk user, which also signs you out. Phase 9: Clerk's
+   * `user.deleted` webhook runs the Convex cascade (posts, comments, likes,
+   * follows); messages stay, shown as "Deleted user" (scope §4).
+   */
+  async function deleteAccount() {
+    if (!user) throw new Error("Not signed in");
+    await user.delete();
+  }
+
+  return { status, account, completeOnboarding, deleteAccount, signOut: () => signOut() };
 }

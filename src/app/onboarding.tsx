@@ -1,4 +1,5 @@
 import * as ImagePicker from "expo-image-picker";
+import { router } from "expo-router";
 import { Check } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, View } from "react-native";
@@ -138,10 +139,13 @@ export default function Onboarding() {
             <Checkbox checked={agreed} onChange={setAgreed} accessibilityLabel="I agree to the Terms and Community rules" />
             <Text style={styles.termsText} onPress={() => setAgreed(!agreed)}>
               I agree to the{" "}
-              {/* TODO: link to the Terms page once it exists (not on the board yet). */}
-              <Text style={styles.link}>Terms</Text> and{" "}
-              {/* TODO: link to the Community rules page. */}
-              <Text style={styles.link}>Community rules</Text>
+              <Text style={styles.link} accessibilityRole="link" onPress={() => router.push("/terms")}>
+                Terms
+              </Text>{" "}
+              and{" "}
+              <Text style={styles.link} accessibilityRole="link" onPress={() => router.push("/rules")}>
+                Community rules
+              </Text>
             </Text>
           </View>
         </ScrollView>

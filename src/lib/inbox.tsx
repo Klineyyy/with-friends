@@ -9,7 +9,7 @@ import {
   type MockConversation,
   type MockMessage,
 } from "./mock-data";
-import { useUsers, type User } from "./posts";
+import { useBlocks, useUsers, type User } from "./posts";
 
 /**
  * Messages and Activity for the UI phases (board 14a–16b).
@@ -146,16 +146,17 @@ export type ConversationSummary = {
 export function useConversations(): ConversationSummary[] {
   const { state } = useStore();
   const userById = useUsers();
+  const { isBlocked } = useBlocks();
   return useMemo(
     () =>
       state.conversations
         .flatMap((c) => {
           const last = lastOf(c);
-          if (!last) return [];
+          if (!last || isBlocked(c.userId)) return [];
           return [{ user: userById(c.userId), preview: previewOf(last), lastMessageAt: last.createdAt, unread: isUnread(c) }];
         })
         .sort((a, b) => b.lastMessageAt - a.lastMessageAt),
-    [state.conversations, userById],
+    [state.conversations, userById, isBlocked],
   );
 }
 
@@ -173,13 +174,18 @@ export function useThread(userId: string) {
 
 /** Every member except you, for the empty Messages list (14b) and New message. */
 export function useMembers(): User[] {
-  return mockUsers;
+  const { isBlocked } = useBlocks();
+  return useMemo(() => mockUsers.filter((u) => !isBlocked(u.id)), [isBlocked]);
 }
 
 /** Your activity, newest first (board 16a). */
 export function useActivity() {
   const { state, dispatch } = useStore();
-  const items = useMemo(() => [...state.activity].sort((a, b) => b.createdAt - a.createdAt), [state.activity]);
+  const { isBlocked } = useBlocks();
+  const items = useMemo(
+    () => state.activity.filter((a) => !isBlocked(a.actorId)).sort((a, b) => b.createdAt - a.createdAt),
+    [state.activity, isBlocked],
+  );
   return {
     items,
     markAllRead: useCallback(() => dispatch({ type: "markActivityRead" }), [dispatch]),
@@ -189,12 +195,13 @@ export function useActivity() {
 /** Fern dots: the Home heart (activity) and the Messages tab. */
 export function useUnread() {
   const { state } = useStore();
+  const { isBlocked } = useBlocks();
   return useMemo(
     () => ({
-      activity: state.activity.some((a) => !a.read),
-      messages: state.conversations.some(isUnread),
+      activity: state.activity.some((a) => !a.read && !isBlocked(a.actorId)),
+      messages: state.conversations.some((c) => !isBlocked(c.userId) && isUnread(c)),
     }),
-    [state],
+    [state, isBlocked],
   );
 }
 

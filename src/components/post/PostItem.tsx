@@ -6,7 +6,8 @@ import { Avatar, IconButton, Text } from "@/components/ui";
 import { timeAgo } from "@/lib/format";
 import { ME_ID } from "@/lib/mock-data";
 import { openProfile } from "@/lib/open-profile";
-import { usePostActions, useUsers, type Post } from "@/lib/posts";
+import { usePostActions, useUsers, useVisibleComments, type Post } from "@/lib/posts";
+import { useReport } from "@/lib/safety";
 import { space } from "@/theme";
 
 import { LikeButton } from "./LikeButton";
@@ -22,11 +23,13 @@ type Props = {
 export function PostItem({ post, hideCommentsLink }: Props) {
   const userById = useUsers();
   const { setLiked, deletePost } = usePostActions();
+  const report = useReport();
+  const comments = useVisibleComments(post);
 
   const author = userById(post.authorId);
   const liked = post.likedBy.includes(ME_ID);
   const isMine = post.authorId === ME_ID;
-  const commentCount = post.comments.length;
+  const commentCount = comments.length;
 
   const openPost = () => router.push({ pathname: "/post/[id]", params: { id: post.id } });
 
@@ -44,6 +47,7 @@ export function PostItem({ post, hideCommentsLink }: Props) {
     } else {
       Alert.alert(author.username, undefined, [
         { text: "Share", onPress: share },
+        { text: "Report", onPress: () => report({ type: "post", id: post.id, userId: post.authorId }) },
         { text: "Cancel", style: "cancel" },
       ]);
     }

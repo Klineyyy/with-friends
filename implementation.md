@@ -15,11 +15,11 @@ Every phase ends with `npx tsc --noEmit` and `npx expo lint` passing.
 ```
 src/
   app/              routes only (Expo Router). (tabs)/ = Home · Explore · Messages · Profile
-  components/ui/    design-system primitives: Text, Button, IconButton, TextField, SearchField, Checkbox, Avatar, UnreadDot, Logo, Screen, SegmentedControl
-  components/       app components: TopBar, FloatingTabBar, PersonRow, EmptyState, PhotoGrid, ProfileHeader, UnderlineTabs, MenuPopover, ConversationRow, ActivityRow
+  components/ui/    design-system primitives: Text, Button, IconButton, TextField, SearchField, Checkbox, Switch, Radio, Avatar, UnreadDot, Logo, Screen, SegmentedControl
+  components/       app components: TopBar, FloatingTabBar, PersonRow, EmptyState, PhotoGrid, ProfileHeader, UnderlineTabs, MenuPopover, ConversationRow, ActivityRow, BottomSheet, ReportSheet, SettingsRow (+ RadioRow, SettingsDivider), DocPage
   components/post/  PostItem, MediaView, LikeButton, UploadStatusRow
   components/messages/  MessageBubble (text / photo / shared-post card)
-  lib/              app logic: auth state, posts store + hooks, inbox store + hooks (messages, activity), mock data, formatting, later Convex hooks
+  lib/              app logic: auth state, posts store + hooks (incl. blocks), inbox store + hooks (messages, activity), safety (reports, notification settings), mock data, formatting, later Convex hooks
   theme/            tokens: colours (light/dark), Roboto type scale, spacing, radius
 ```
 
@@ -33,7 +33,7 @@ src/
 Board screens 1–3.
 
 - [x] Theme tokens (`src/theme`), Roboto via `@expo-google-fonts/roboto`; the splash screen stays up until fonts load
-- [x] Appearance choice: System / Light / Dark (`src/theme/appearance.ts`, `useAppearancePref`, `setAppearancePref`). Saved in `expo-secure-store`, read synchronously at startup. Picker is on the temporary Settings screen (≡ on your profile); becomes an Appearance row on board 17 in Phase 7. Use `useScheme()` / `useColors()`, never RN `useColorScheme()` directly
+- [x] Appearance choice: System / Light / Dark (`src/theme/appearance.ts`, `useAppearancePref`, `setAppearancePref`). Saved in `expo-secure-store`, read synchronously at startup. Now an Appearance row on Settings (17) that opens a System / Light / Dark radio list (Phase 7). Use `useScheme()` / `useColors()`, never RN `useColorScheme()` directly
 - [x] UI primitives: `Text`, `Button` (primary / secondary / disabled, large / compact), `TextField`, `Checkbox`, `Avatar`, `Logo` / `LogoMark` (SVG fish), `Screen`
 - [x] `sign-in` (1), `onboarding` (3). Screen 2 (Not invited) was built, then dropped with invite-only
 - [x] Route guards with `Stack.Protected` driven by an auth status
@@ -42,7 +42,7 @@ Board screens 1–3.
 - [x] ~~`index` is a placeholder Home with Sign out~~ replaced by the tab shell in Phase 2
 
 Open items for this area:
-- Terms and Community rules links don't go anywhere yet (those pages aren't on the board).
+- ~~Terms and Community rules links don't go anywhere yet~~ They open the `terms` and `rules` pages since Phase 7.
 - Splash background (`#208AEF`) and app icons are still the Expo template's. Replace them with the fish mark on white.
 - The logo is redrawn as SVG from the board; check it against the board at large size.
 
@@ -96,26 +96,26 @@ Screens 10a–13.
 - [x] `follows/[id]` (13): ← username, "10 followers" / "9 following" tabs with underline (`UnderlineTabs`), person rows. Your own row shows "You" instead of a button (as on board 9)
 - [x] Profiles open from: post author (avatar + username), every person row (Home empty state, search, follower lists). `openProfile()` in `src/lib/open-profile.ts` sends you to the Profile tab for yourself
 - [x] `edit-profile` (not on the board): name and bio (150 max, counter), Save in the top bar. **TEMPORARY**: saved in memory
-- [x] `settings` (**TEMPORARY**, until board 17 in Phase 7): Appearance picker, Sign out, dev-only "Unfollow everyone". Moved off the Profile placeholder
+- [x] ~~`settings` (**TEMPORARY**, until board 17 in Phase 7)~~ Replaced by board 17 in Phase 7
 - [x] Sample data: bios, a follow graph between members (`mockFollowGraph`; maya has 10 followers / 9 following like the board), 16 older square photos so grids fill. Theo, Sam and Nina renamed to the board's Theo Reyes, Sam Ocampo, Nina Lim (so "reyes" finds 3 people, as in 10b)
 - [x] Hooks in `src/lib/posts.tsx`: `useExplorePosts`, `useUserPosts`, `useFollowLists`, `useSearchPeople`, `useUpdateProfile`, `userExists`. Your follows update every count and list at once
 
 Open items for this area:
-- Block / Report in the ⋯ menu show "isn't ready yet" until Phase 7.
+- ~~Block / Report in the ⋯ menu show "isn't ready yet" until Phase 7.~~ Working since Phase 7.
 - ~~Message opens the Messages tab, not a thread, until Phase 6.~~ Opens the thread since Phase 6.
 - Profiles, follower lists and Settings open on the root stack, so the tab bar is hidden there (same as `post/[id]`). Board 12 shows the tab bar on maya's profile; keeping it needs a stack inside each tab. See decisions.
 - Edit profile can't change photo or username yet (username needs the Convex unique index, Phase 9). Edits reset on reload.
 - Tapping a grid tile opens the single-post screen, not a scrollable feed of that profile's posts.
 
 ### Phase 5 — Comments, likes, share (UI)
-Screens 7, 8a, 8b, 9, 20. `BottomSheet` component.
+Screens 7, 8a, 8b, 9, 20. `BottomSheet` component (built in Phase 7 for the report sheet; reuse it). Give comments a ⋯ / Report in the comments sheet, replacing the long-press on `post/[id]`.
 
 ### Phase 6 — Messages and Activity (UI) ✅ done
 Screens 14a–16b.
 
 - [x] `messages` tab (14a): "Messages" + ✎ (pencil) → New message. `ConversationRow`: 52 avatar, display name, "preview · time" ("Sent a photo", "Shared a post", "You: …"; times "2m", "3h", "Mon", "Oct 28"), fern dot when unread. Most recent first
 - [x] Empty (14b): chat icon, "Start a conversation" / "Messages are one-to-one and only seen by the two of you.", "Members" with Message buttons (`PersonRow` now takes an `action` and `onPress`)
-- [x] `thread/[id]` (15), ID = the other person's user ID: ← 32 avatar, display name, @username (taps to profile), ⋯ → View profile / Block / Report (Block and Report say "isn't ready yet" until Phase 7). Inverted list; centred time ("Today 8:12 AM") above the first message after an hour's gap. `MessageBubble`: incoming grey left, outgoing black right, photos 200 wide rounded, shared-post card (24 avatar + username, media, 2-line caption, opens the post; "This post was deleted." if gone). "Seen" under your last message when it's the newest and they've read it. Composer: photo button (system picker, compressed like posts), "Message…" (1,000 max, grows to ~5 lines), send (grey until there's text)
+- [x] `thread/[id]` (15), ID = the other person's user ID: ← 32 avatar, display name, @username (taps to profile), ⋯ → View profile / Block / Report (working since Phase 7). Inverted list; centred time ("Today 8:12 AM") above the first message after an hour's gap. `MessageBubble`: incoming grey left, outgoing black right, photos 200 wide rounded, shared-post card (24 avatar + username, media, 2-line caption, opens the post; "This post was deleted." if gone). "Seen" under your last message when it's the newest and they've read it. Composer: photo button (system picker, compressed like posts), "Message…" (1,000 max, grows to ~5 lines), send (grey until there's text)
 - [x] `new-message` (not on the board, built like 8b): ✕ "New message", "Search people", members; tap → thread (replaces the picker, so Back goes to Messages)
 - [x] `activity` (16a): ← "Activity", sections Today / This week / Earlier. `ActivityRow`: fern dot left of unread rows, 44 avatar, "**maya** liked your post. 12m", 44 thumbnail (opens the post) or Follow / Following (follows open the profile). Likes on the same post in the same section are grouped: "tom and 2 others liked your post." (design.md §6 conflict 4). Opening Activity clears the Home heart dot; rows keep their dots until you leave
 - [x] Store and hooks in `src/lib/inbox.tsx` (`useConversations`, `useThread`, `useMembers`, `useActivity`, `useUnread`). The Home heart and Messages tab dots are now derived from it (the fixed `mockUnread` flags are gone). In-memory: resets on reload
@@ -129,8 +129,27 @@ Open items for this area:
 - Activity rows for a post that's since been deleted show no thumbnail and open the person. Phase 9 should delete those notifications with the post.
 - Sending a post to someone from the share sheet (8a / 8b) comes in Phase 5; the store already accepts `{ kind: "post", postId }`.
 
-### Phase 7 — Settings and safety (UI)
+### Phase 7 — Settings and safety (UI) ✅ done
 Screens 17–19, 21.
+
+- [x] `settings` (17): ← "Settings". Account row (44 avatar, name, "Signed in with Google · email", provider from Clerk `externalAccounts`). Notifications ›, **Appearance** (value, ›), Blocked users (count when > 0) ›, Community rules ›, Terms and privacy ›, Sign out (asks first), Delete account. Footer "With Friends 1.0.0", plus "· Invite-only" when `INVITE_ONLY` in `src/lib/app-info.ts` is on (off now). Dev builds add "Unfollow everyone" / "Clear messages" rows
+- [x] `notifications` (18): intro line + Likes / Comments / Follows / Messages, each with a one-line description and a `Switch` (all on by default). **TEMPORARY**: in memory; push and stored preferences are Phase 10
+- [x] `appearance` (not on the board): System / Light / Dark as radio rows. Same saved setting as before
+- [x] Report sheet (19): `BottomSheet` + `ReportSheet`, rendered once by `SafetyProvider`; open with `useReport()({ type, id, userId })`. "Report post" / "Report comment" / "Report account", "…won't know it was you", six reasons, Send report (disabled until a reason is picked). Then "Thanks for telling us" with **Block {username}** and Done. **TEMPORARY**: reports kept in memory. Opens from: post ⋯ (others' posts: Share · Report), profile ⋯, thread ⋯, long-press on someone else's comment in `post/[id]`
+- [x] Blocking: `useBlocks()` in `src/lib/posts.tsx`, confirm dialogs in `useBlockActions()` (`src/lib/blocks.ts`). Block from profile ⋯ or thread ⋯, or after reporting. Blocking also unfollows. A blocked person is hidden from Home, Explore, search, "People you may know", follower lists, comments (and counts), Messages, New message, Activity and the unread dots. Their profile shows "You blocked maya" + Unblock; their thread shows "You blocked maya. They can't message you." + Unblock instead of the composer
+- [x] `blocked` (not on the board): person rows with Unblock (asks first); empty state "No one blocked"
+- [x] `delete-account` (21): title, explanation, "I understand this can't be undone" checkbox, Delete account (disabled until ticked, "Deleting…") + Cancel. **Really deletes the Clerk user** (`user.delete()`), which signs you out. Needs "Allow users to delete their accounts" on in Clerk (on by default); otherwise the error shows in an alert
+- [x] `rules` and `terms` (not on the board): plain reading pages (`DocPage`). Open from Settings and from the onboarding checkbox text; routes sit outside the auth guards so onboarding can reach them
+- [x] Primitives: `Switch` (black track + white knob / outline + grey knob, no slide animation), `Radio` (black ring + dot). `SettingsRow`, `RadioRow`, `SettingsDivider`
+
+Open items for this area:
+- **Delete account copy follows the scope, not the board** (design.md §6 conflict 3): "Messages you sent stay… shown as from 'Deleted user'". If you'd rather delete messages for everyone, change the copy in `delete-account.tsx`, the Settings row and `terms.tsx`, and the Phase 9 cascade.
+- Account deletion only removes the Clerk user until Phase 9 (Convex cascade from the `user.deleted` webhook). The web page to request deletion is Phase 10.
+- **Terms and privacy is a plain-language draft**, written to match the scope. Get real terms and a privacy policy before release (Play needs a privacy policy URL that matches the Data safety form). Community rules are a draft too.
+- Blocks, reports and notification settings reset on reload (in memory). Blocking someone doesn't remove their follow of you in the sample data (the follow graph is fixed); Phase 9's mutation removes both.
+- A post by someone you blocked still opens from a direct link or an old Activity row; scope only asks to hide them from lists.
+- "Something else" has no free-text box (`reports` has only `reason`).
+- The sheet appears without sliding and can't be dragged down; tap outside or Back closes it.
 
 ### Phase 8 — Auth (Clerk) ✅ code done, not yet tested on a device
 Done out of order (before Phases 2–7) at your request.

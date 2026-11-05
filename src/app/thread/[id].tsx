@@ -2,19 +2,21 @@ import * as ImagePicker from "expo-image-picker";
 import { Redirect, useLocalSearchParams } from "expo-router";
 import { Ban, Ellipsis, Flag, ImageIcon, Send, UserRound } from "lucide-react-native";
 import { useEffect, useMemo, useState } from "react";
-import { Alert, FlatList, KeyboardAvoidingView, Pressable, StyleSheet, TextInput, View } from "react-native";
+import { FlatList, KeyboardAvoidingView, Pressable, StyleSheet, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { MenuPopover } from "@/components/MenuPopover";
 import { MessageBubble } from "@/components/messages/MessageBubble";
 import { TopBar } from "@/components/TopBar";
-import { Avatar, IconButton, Text } from "@/components/ui";
+import { Avatar, Button, IconButton, Text } from "@/components/ui";
+import { useBlockActions } from "@/lib/blocks";
 import { threadTimestamp } from "@/lib/format";
 import { MESSAGE_MAX_LENGTH, useThread, type Message } from "@/lib/inbox";
 import { ME_ID } from "@/lib/mock-data";
 import { openProfile } from "@/lib/open-profile";
 import { compressImage } from "@/lib/prepare-media";
-import { useUsers } from "@/lib/posts";
+import { useUsers, type User } from "@/lib/posts";
+import { useReport } from "@/lib/safety";
 import { space, typeScale, useColors } from "@/theme";
 
 /** A centred time shows above the first message after an hour's quiet. */
@@ -32,6 +34,8 @@ export default function Thread() {
   const userById = useUsers();
   const { messages, theirLastReadAt, send, markRead } = useThread(id);
   const [menuOpen, setMenuOpen] = useState(false);
+  const { isBlocked, confirmBlock, confirmUnblock } = useBlockActions();
+  const report = useReport();
 
   // Reading the thread clears its unread dot, including messages that arrive while it's open.
   const lastMessageAt = messages[messages.length - 1]?.createdAt;
@@ -45,9 +49,7 @@ export default function Thread() {
   if (id === ME_ID) return <Redirect href="/messages" />;
 
   const user = userById(id);
-
-  // TEMPORARY: blocking and reporting arrive with Settings and safety (Phase 7).
-  const notYet = (what: string) => Alert.alert(`${what} isn't ready yet`, "It comes with Settings and safety.");
+  const blocked = isBlocked(id);
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -84,15 +86,17 @@ export default function Thread() {
           keyboardDismissMode="interactive"
           keyboardShouldPersistTaps="handled"
         />
-        <Composer onSend={send} />
+        {blocked ? <BlockedFooter user={user} onUnblock={() => confirmUnblock(user)} /> : <Composer onSend={send} />}
       </KeyboardAvoidingView>
       <MenuPopover
         visible={menuOpen}
         onClose={() => setMenuOpen(false)}
         items={[
           { icon: UserRound, label: "View profile", onPress: () => openProfile(user.id) },
-          { icon: Ban, label: `Block ${user.username}`, onPress: () => notYet("Blocking") },
-          { icon: Flag, label: `Report ${user.username}`, onPress: () => notYet("Reporting") },
+          blocked
+            ? { icon: Ban, label: `Unblock ${user.username}`, onPress: () => confirmUnblock(user) }
+            : { icon: Ban, label: `Block ${user.username}`, onPress: () => confirmBlock(user) },
+          { icon: Flag, label: `Report ${user.username}`, onPress: () => report({ type: "user", id, userId: id }) },
         ]}
       />
     </View>
@@ -139,6 +143,25 @@ function ThreadRow({ row }: { row: Row }) {
   return (
     <View style={{ marginTop: row.newSender ? 12 : 4 }}>
       <MessageBubble message={row.message} mine={row.message.senderId === ME_ID} />
+    </View>
+  );
+}
+
+/** In place of the composer while you've blocked them. */
+function BlockedFooter({ user, onUnblock }: { user: User; onUnblock: () => void }) {
+  const colors = useColors();
+  const insets = useSafeAreaInsets();
+  return (
+    <View
+      style={[
+        styles.blocked,
+        { borderTopColor: colors.divider, paddingBottom: Math.max(insets.bottom, space.sm) + space.sm },
+      ]}
+    >
+      <Text tone="secondary" style={styles.flex}>
+        You blocked {user.username}. They can&apos;t message you.
+      </Text>
+      <Button label="Unblock" variant="secondary" size="compact" onPress={onUnblock} />
     </View>
   );
 }
@@ -210,6 +233,14 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingTop: space.sm,
     paddingHorizontal: space.screenEdge - 10,
+    borderTopWidth: StyleSheet.hairlineWidth * 2,
+  },
+  blocked: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingTop: space.md,
+    paddingHorizontal: space.screenEdge,
     borderTopWidth: StyleSheet.hairlineWidth * 2,
   },
   input: {
