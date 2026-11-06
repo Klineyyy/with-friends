@@ -73,6 +73,44 @@ describe("onboarding and usernames", () => {
   });
 });
 
+describe("profile photo", () => {
+  test("the Clerk photo and name come from the app; other photo hosts are ignored", async () => {
+    const t = convexTest(schema, modules);
+    const as = t.withIdentity({ subject: "clerk_pic" }); // Clerk's Convex token: no name, no picture
+    await as.mutation(api.users.ensure, { name: "Pic Person", imageUrl: "https://evil.example/x.png" });
+    await as.mutation(api.users.completeOnboarding, { username: "pic" });
+    let me = await as.query(api.users.me, {});
+    expect(me?.avatarUri).toBeNull();
+    expect(me?.displayName).toBe("Pic Person");
+
+    await as.mutation(api.users.ensure, { imageUrl: "https://img.clerk.com/abc" });
+    me = await as.query(api.users.me, {});
+    expect(me?.avatarUri).toBe("https://img.clerk.com/abc");
+  });
+
+  test("an empty name is filled in after onboarding, an edited one isn't overwritten", async () => {
+    const t = convexTest(schema, modules);
+    const as = t.withIdentity({ subject: "clerk_noname" });
+    await as.mutation(api.users.ensure, {});
+    await as.mutation(api.users.completeOnboarding, { username: "noname" });
+    await as.mutation(api.users.ensure, { name: "From Google" });
+    expect((await as.query(api.users.me, {}))?.displayName).toBe("From Google");
+    await as.mutation(api.users.updateProfile, { displayName: "Mine", bio: "" });
+    await as.mutation(api.users.ensure, { name: "From Google" });
+    expect((await as.query(api.users.me, {}))?.displayName).toBe("Mine");
+  });
+
+  test("a new photo replaces the Clerk one", async () => {
+    const t = convexTest(schema, modules);
+    const { as } = await member(t, "photo");
+    await as.mutation(api.users.ensure, { imageUrl: "https://img.clerk.com/abc" });
+    await as.mutation(api.users.setAvatar, { avatarStorageId: await storeImage(t) });
+    const me = await as.query(api.users.me, {});
+    expect(me?.avatarUri).not.toBe("https://img.clerk.com/abc");
+    expect(me?.avatarUri).toBeTruthy();
+  });
+});
+
 describe("posts, likes, comments", () => {
   test("only the owner can delete a post or comment", async () => {
     const t = convexTest(schema, modules);

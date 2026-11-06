@@ -204,16 +204,11 @@ export function useFollowing() {
       following: on ? [...g.following.filter((id) => id !== userId), userId] : g.following.filter((id) => id !== userId),
     })),
   );
-  const unfollowAll = useMutation(api.social.unfollowAll).withOptimisticUpdate((store) =>
-    patchGraph(store, (g) => ({ ...g, following: [] })),
-  );
   return {
     count: following.size,
     isFollowing: (userId: string) => following.has(userId),
     follow: (userId: string) => void setFollowing({ userId: userId as Id<"users">, following: true }).catch(warn),
     unfollow: (userId: string) => void setFollowing({ userId: userId as Id<"users">, following: false }).catch(warn),
-    /** Dev only: empties the follow list so the empty Home (board 5) shows. */
-    clearAll: () => void unfollowAll().catch(warn),
   };
 }
 
@@ -320,6 +315,16 @@ export function useSearchPeople(query: string): User[] {
 /** A post's comments, oldest first, without people hidden by a block. */
 export function useComments(postId: string): Comment[] | undefined {
   return useQuery(api.social.comments, { postId });
+}
+
+/** Edit profile: upload a picked photo (local URI) and make it your avatar. Throws a ConvexError with a message. */
+export function useSetAvatar() {
+  const generateUploadUrl = useMutation(api.posts.generateUploadUrl);
+  const setAvatar = useMutation(api.users.setAvatar);
+  return async (localUri: string) => {
+    const storageId = (await uploadFile(await generateUploadUrl(), localUri)) as Id<"_storage">;
+    await setAvatar({ avatarStorageId: storageId });
+  };
 }
 
 /** Edit profile: display name and bio. Resolves when saved; throws a ConvexError with a message. */

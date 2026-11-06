@@ -190,21 +190,6 @@ export const setFollowing = mutation({
   },
 });
 
-/** Dev only (Settings): unfollow everyone, to see the empty Home. */
-export const unfollowAll = mutation({
-  args: {},
-  returns: v.null(),
-  handler: async (ctx) => {
-    const me = await requireMember(ctx);
-    const follows = await ctx.db
-      .query("follows")
-      .withIndex("by_followerId_and_followeeId", (q) => q.eq("followerId", me._id))
-      .take(500);
-    for (const f of follows) await removeFollow(ctx, me._id, f.followeeId);
-    return null;
-  },
-});
-
 const personView = v.object({ ...userView.fields, isFollowing: v.boolean() });
 
 /** Followers and following for anyone (board 13), without people hidden by a block. */

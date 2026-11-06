@@ -82,8 +82,11 @@ export async function upsertFromClerk(
   if (existing) {
     const patch: Partial<Doc<"users">> = {};
     if (clerk.imageUrl && clerk.imageUrl !== existing.clerkImageUrl) patch.clerkImageUrl = clerk.imageUrl;
-    // Before onboarding the name still follows Clerk; after that it's theirs to edit.
-    if (!existing.onboarded && clerk.name && clerk.name !== existing.displayName) patch.displayName = clerk.name;
+    // Before onboarding the name still follows Clerk; after that it's theirs to
+    // edit (unless it was never filled in).
+    if ((!existing.onboarded || !existing.displayName) && clerk.name && clerk.name !== existing.displayName) {
+      patch.displayName = clerk.name.slice(0, LIMITS.displayName);
+    }
     if (Object.keys(patch).length) await ctx.db.patch("users", existing._id, patch);
     return { ...existing, ...patch };
   }
@@ -100,11 +103,19 @@ export async function upsertFromClerk(
   return (await ctx.db.get("users", id))!;
 }
 
-/** Called by the app right after sign-in, so a user row exists without waiting for the webhook. */
+/** Clerk serves profile photos (incl. the Google / Apple one) from here. */
+const CLERK_IMAGE_HOST = "https://img.clerk.com/";
+
+/**
+ * Called by the app right after sign-in, so a user row exists without waiting
+ * for the webhook, and again each session to refresh the Clerk name and photo.
+ * Clerk's Convex token carries no name or picture, so the app passes them
+ * (from the signed-in Clerk user). Only Clerk-hosted photo URLs are accepted.
+ */
 export const ensure = mutation({
-  args: {},
+  args: { name: v.optional(v.string()), imageUrl: v.optional(v.string()) },
   returns: v.null(),
-  handler: async (ctx) => {
+  handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new ConvexError("Not signed in");
     const existing = await ctx.db
@@ -112,10 +123,11 @@ export const ensure = mutation({
       .withIndex("by_clerkId", (q) => q.eq("clerkId", identity.subject))
       .unique();
     if (existing?.deletingAt) throw new ConvexError("This account is being deleted.");
+    const imageUrl = identity.pictureUrl ?? args.imageUrl;
     await upsertFromClerk(ctx, {
       clerkId: identity.subject,
-      name: identity.name,
-      imageUrl: identity.pictureUrl,
+      name: identity.name ?? (args.name?.trim() || undefined),
+      imageUrl: imageUrl?.startsWith(CLERK_IMAGE_HOST) ? imageUrl : undefined,
     });
     return null;
   },
@@ -157,6 +169,20 @@ export const completeOnboarding = mutation({
     if (args.avatarStorageId && oldAvatar && oldAvatar !== args.avatarStorageId) {
       await ctx.storage.delete(oldAvatar);
     }
+    return null;
+  },
+});
+
+/** Edit profile: a new photo, already uploaded. Replaces (and deletes) the old upload. */
+export const setAvatar = mutation({
+  args: { avatarStorageId: v.id("_storage") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const me = await requireMember(ctx);
+    await checkUpload(ctx, args.avatarStorageId, "image");
+    const oldAvatar = me.avatarStorageId;
+    await ctx.db.patch("users", me._id, { avatarStorageId: args.avatarStorageId });
+    if (oldAvatar && oldAvatar !== args.avatarStorageId) await ctx.storage.delete(oldAvatar);
     return null;
   },
 });

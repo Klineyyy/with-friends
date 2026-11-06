@@ -8,7 +8,7 @@ import { TopBar } from "@/components/TopBar";
 import { Avatar, Text } from "@/components/ui";
 import { APP_VERSION, INVITE_ONLY } from "@/lib/app-info";
 import { useAuth } from "@/lib/auth";
-import { useBlocks, useFollowing, useMe } from "@/lib/posts";
+import { useBlocks, useMe } from "@/lib/posts";
 import { space, useAppearancePref, useColors } from "@/theme";
 
 const APPEARANCE_LABEL = { system: "System", light: "Light", dark: "Dark" } as const;
@@ -86,28 +86,12 @@ export default function Settings() {
           onPress={() => router.push("/delete-account")}
         />
 
-        {__DEV__ ? <DevTools /> : null}
-
         <Text variant="meta" tone="secondary" style={styles.footer}>
           With Friends {APP_VERSION}
           {INVITE_ONLY ? " · Invite-only" : ""}
         </Text>
       </ScrollView>
     </View>
-  );
-}
-
-/** Dev builds only: empty states that are otherwise hard to reach. */
-function DevTools() {
-  const { clearAll } = useFollowing();
-  return (
-    <>
-      <SettingsDivider />
-      <Text variant="meta" tone="secondary" style={styles.devLabel}>
-        Dev only
-      </Text>
-      <SettingsRow label="Unfollow everyone" description="See the empty Home" onPress={clearAll} />
-    </>
   );
 }
 
@@ -122,6 +106,5 @@ const styles = StyleSheet.create({
     paddingVertical: space.sm,
   },
   accountText: { flex: 1 },
-  devLabel: { paddingHorizontal: space.screenEdge, paddingTop: space.sm },
   footer: { marginTop: "auto", paddingTop: space.xl, paddingHorizontal: space.screenEdge },
 });

@@ -26,7 +26,7 @@ Posting a photo or video and seeing what your friends posted — fast, reliable,
 | Routing | Expo Router `~58.0.30`, routes in `src/app/` | |
 | Tabs | Native tabs via `expo-router/native-tabs` (stable import in SDK 58; `unstable-native-tabs` was SDK 54–57) | Template already uses it |
 | Styling | NativeWind | v5 is `@preview`, needs RN ≥ 0.81; v4.2.x is stable. Version decided at scaffold — see risks |
-| Auth | Clerk — Google and Apple sign-in, plus username/email + password once a password is added in Settings, **Invite-only access mode** | |
+| Auth | Clerk — Google and Apple sign-in, plus username/email + password once a password is added in Settings, **Waitlist access mode** (you approve every new account) | |
 | Backend, DB, files, realtime | Convex | |
 | Push | `expo-notifications` + Expo Push Service, sent from Convex actions | |
 | Builds & updates | EAS Build (`development`, `preview`, `production`), EAS Update | |
@@ -38,8 +38,8 @@ App config: name `With Friends`, slug `with-friends`, deep-link scheme `withfrie
 ## 3. Scope
 
 ### In scope for v1
-- **Access:** invite-only. Admin (you) sends invitations from the Clerk dashboard; only invited people can create accounts.
-- **Sign in** with Google or Apple. After the first sign-in you can add a password in Settings, then sign in with username (or email) + password. Sign-up is Google / Apple only.
+- **Access:** waitlist (changed from invite-only 2026-11-06). New people request access with their email; the admin (you) approves or rejects each one in Clerk Dashboard → Waitlist. Only approved people (and anyone you invite directly) can create accounts.
+- **Sign in** with Google or Apple (the sign-in screen card "Have an account?" holds Google, Apple and username + password). After the first sign-in you can add a password in Settings, then sign in with username (or email) + password. Sign-up is Google / Apple only.
 - **Onboarding** on first sign-in: choose username, optionally change avatar, accept terms.
 - **Profile:** display name, username, bio (≤150 chars), avatar. View and edit own; view anyone's. Follower/following lists. Usernames can be changed, so links use IDs, never usernames.
 - **Posts:** one photo or one video (≤30 s, ≤50 MB) plus optional caption. Images compressed on device; videos played as uploaded. Caption editable later; media not. Delete own posts.
@@ -60,7 +60,7 @@ Web app · private accounts / follow requests · multi-photo carousels · server
 
 ## 4. Core user journeys
 
-1. **First launch (not invited):** sign-in screen → Google/Apple → Clerk rejects sign-up → "You need an invitation to join. Ask the person who shared the app with you." *(On hold 2026-11-04: invite-only is off during development; anyone can sign up. Revisit before inviting friends.)*
+1. **First launch (not approved):** sign-in screen → Request access → enter email → "You're on the list". When you approve them (`npm run approve -- <email>`), Clerk emails "You're in" with instructions (no button): open the app → Continue with Google/Apple with that email → onboarding.
 2. **First launch (invited):** sign-in → onboarding (username, avatar, accept terms) → Home empty state: "Follow people to see their posts here", with a button to Explore and a short list of members to follow.
 3. **Returning user:** app opens straight to the Home feed.
 4. **Post:** create button (Home header) → pick from library or capture → preview, length check (≤30 s), caption → **Share** → appears at the top of followers' feeds. While uploading, the post shows a progress state; on failure, "Upload failed. Tap to retry."
@@ -147,7 +147,7 @@ All IDs are Convex document IDs. Counts are stored on the parent record and upda
 - **A5.** Moderation = block + report, reviewed manually in the Convex dashboard (required by Google Play's UGC policy).
 - **A6.** Light/dark mode follows the system setting by default; the user can force Light or Dark in Appearance (saved on the device). Confirmed 2026-11-04.
 - **A7.** CI runs on **GitHub Actions**. The repo has no remote yet, so this needs a GitHub repo. EAS Workflows is the alternative.
-- **A8.** Clerk **Invite-only** access mode; you send invites from the Clerk dashboard.
+- **A8.** Clerk **Waitlist** access mode; you approve requests in the Clerk dashboard (direct invitations still work).
 - **A9.** Feed is computed on read; no fan-out tables.
 - **A10.** Text limits: caption 2,200, comment 500, message 1,000, bio 150 characters.
 - **A11.** Terms of use are accepted during onboarding (Google Play UGC requirement).
@@ -159,7 +159,7 @@ All IDs are Convex document IDs. Counts are stored on the parent record and upda
 ## 11. Open risks and unknowns
 
 1. **NativeWind version.** v5 is a preview release; v4 is stable but may not support RN 0.88 / Reanimated 4.7. Test both at scaffold time — could cost a day.
-2. **Invite-only + OAuth.** Confirm invited users can finish sign-up with Google/Apple in the Expo flow (invitation ticket handling). **Apple "Hide My Email"** produces a relay address that won't match the invited email — may need the invitation-link flow, or Google only for invitees.
+2. **Waitlist + OAuth.** Confirm approved users can finish sign-up with Google/Apple in the Expo flow (invitation ticket handling). **Apple "Hide My Email"** produces a relay address that won't match the invited email — may need the invitation-link flow, or Google only for invitees.
 3. **Apple sign-in on Android** goes through a browser flow; confirm Clerk's Expo SDK handles it smoothly.
 4. **Convex free-tier limits** on file storage and bandwidth with video — check current quotas; the 30 s cap helps.
 5. **Push on Android** needs Firebase (FCM v1) credentials uploaded to EAS; first-time setup is fiddly.

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>You're in: {{app.name}}</title>
+  </head>
+  <body style="margin:0;padding:0;background:#ffffff;">
+    <!-- Clerk requires the template to use action_url. With Friends doesn't use the link: {{action_url}} -->
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+      <tr>
+        <td align="center" style="padding:32px 16px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:480px;font-family:Roboto,Helvetica,Arial,sans-serif;color:#111111;">
+            <tr>
+              <td style="font-size:22px;line-height:28px;font-weight:600;padding-bottom:16px;">
+                You're in
+              </td>
+            </tr>
+            <tr>
+              <td style="font-size:16px;line-height:24px;padding-bottom:16px;">
+                Your request to join {{app.name}} was approved. To finish joining:
+              </td>
+            </tr>
+            <tr>
+              <td style="font-size:16px;line-height:24px;padding-bottom:16px;">
+                1. Open the {{app.name}} app.<br />
+                2. Under <strong>Have an account?</strong>, tap <strong>Continue with Google</strong> or <strong>Continue with Apple</strong>, and pick the account that uses this email address.
+              </td>
+            </tr>
+            <tr>
+              <td style="font-size:13px;line-height:18px;color:#666666;">
+                Using Apple? Don't choose "Hide My Email", or the app won't recognise you. This approval expires in {{invitation.expires_in_days}} days.
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

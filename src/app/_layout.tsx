@@ -104,7 +104,8 @@ function RootStack() {
     >
       <Stack.Protected guard={status === "signedOut"}>
         <Stack.Screen name="sign-in" />
-        <Stack.Screen name="sign-in-password" options={{ animation: "default" }} />
+        <Stack.Screen name="waitlist" options={{ animation: "default" }} />
+        <Stack.Screen name="no-account" options={{ animation: "default" }} />
       </Stack.Protected>
       <Stack.Protected guard={status === "onboarding"}>
         <Stack.Screen name="onboarding" />

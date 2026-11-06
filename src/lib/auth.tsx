@@ -41,14 +41,31 @@ export function useAuth() {
   const deleteMe = useMutation(api.users.deleteMe);
 
   // First sign-in: create the Convex user row (don't wait for the webhook).
+  // Clerk's Convex token has no name or photo, so pass them from the Clerk
+  // user; Convex keeps the Google / Apple photo as the default avatar.
+  const clerkName = user?.fullName ?? undefined;
+  const clerkImageUrl = user?.hasImage ? user.imageUrl : undefined;
   const ensuring = useRef(false);
   useEffect(() => {
-    if (me !== null || ensuring.current) return;
+    if (me !== null || ensuring.current || !user) return;
     ensuring.current = true;
-    ensure()
+    ensure({ name: clerkName, imageUrl: clerkImageUrl })
       .catch((error) => console.warn("users.ensure failed", error))
       .finally(() => (ensuring.current = false));
-  }, [me, ensure]);
+  }, [me, ensure, user, clerkName, clerkImageUrl]);
+
+  // Existing rows: refresh the Clerk name / photo once per value (fills in
+  // accounts made before this was passed). No-op on the server when unchanged.
+  const refreshed = useRef<string | null>(null);
+  useEffect(() => {
+    if (!me || !user) return;
+    const key = `${user.id}|${clerkName ?? ""}|${clerkImageUrl ?? ""}`;
+    if (refreshed.current === key) return;
+    refreshed.current = key;
+    ensure({ name: clerkName, imageUrl: clerkImageUrl }).catch((error) =>
+      console.warn("users.ensure refresh failed", error),
+    );
+  }, [me, user, ensure, clerkName, clerkImageUrl]);
 
   // Username sign-in: Clerk needs the username too. Convex owns it (picked at
   // onboarding), so mirror it onto the Clerk user. Clerk compares usernames
